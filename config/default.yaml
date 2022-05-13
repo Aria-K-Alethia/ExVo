@@ -1,0 +1,9 @@
+model:
+    feat_dim: 6373
+train_dataset:
+    csv_path: filelists/exvo_train.csv
+    wav_path: ../data/wav
+    feat_path: ../data/feats
+    features: ['compare']
+    sr: 16000
+
