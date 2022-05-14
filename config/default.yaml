@@ -1,9 +1,9 @@
 model:
-    feat_dim: 6373
+    feat_dim: 6461
 dataset:
     wav_path: ../data/wav
     feat_path: ../data/feats
-    features: ['compare']
+    features: ['compare', 'egemaps']
     sr: 16000
     train:
         csv_path: filelists/exvo_train.csv

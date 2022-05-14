@@ -9,7 +9,6 @@ def CCC(pred, gt):
             pred: [#B, #n_emo]
             gt: [#B, #n_emo]
     '''
-    print(pred.shape, gt.shape)
     pred_mean = pred.mean(0)
     gt_mean = gt.mean(0)
 

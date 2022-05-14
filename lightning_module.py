@@ -30,6 +30,7 @@ class BaselineLightningModule(pl.LightningModule):
                         nn.Linear(64, 10),
                         nn.Sigmoid()
                     )
+        print(self.model)
     
     def forward(self, inputs):
         outputs = self.model(inputs)

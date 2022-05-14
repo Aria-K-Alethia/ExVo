@@ -123,10 +123,10 @@ class ExvoDataset(Dataset):
         return feat
 
     def get_egemaps(self, fid):
-        feat_path = join(self.feat_path, 'compare', f'{fid}.csv')
+        feat_path = join(self.feat_path, 'egemaps', f'{fid}.csv')
         with open(feat_path, 'r', encoding='utf8') as f:
             lines = [line.strip().split(',') for line in f if line.strip()]
-        feat = lines[1][1:]
+        feat = [float(item) for item in lines[1][1:]]
         feat = torch.FloatTensor(feat)
         return feat
 

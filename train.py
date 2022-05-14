@@ -3,7 +3,7 @@ import hydra
 from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from torch.utils.data import DataLoader
 from dataset import DataModule
@@ -20,10 +20,14 @@ def train(cfg):
     loggers = [csvlogger, tblogger]
 
     # callbacks
-    checkpoint_callback = ModelCheckPoint(dirpath=cfg.train.log_dir, 
+    checkpoint_callback = ModelCheckpoint(dirpath=cfg.train.log_dir, 
                             save_top_k=1, save_last=True,
                             every_n_epochs=1, monitor='val_ccc', mode='max')
-    callbacks = [checkpoint_callback]
+    earlystop_callback = EarlyStopping(monitor='val_loss', min_delta=1e-4,
+                            patience=5, mode='min', check_finite=True,
+                            stopping_threshold=0.0, divergence_threshold=1e5)
+    lr_monitor = LearningRateMonitor()
+    callbacks = [checkpoint_callback, earlystop_callback, lr_monitor]
 
     datamodule = DataModule(cfg)
     lightning_module = BaselineLightningModule(cfg)
