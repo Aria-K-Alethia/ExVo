@@ -7,9 +7,20 @@ dataset:
     sr: 16000
     train:
         csv_path: filelists/exvo_train.csv
-        batch_size: 8
+        batch_size: 16
         shuffle: true
     val:
         csv_path: filelists/exvo_val.csv
-        batch_size: 8
+        batch_size: 16
         shuffle: false
+train:
+    log_dir: train_log/
+    trainer:
+        gpus: 1
+        min_epochs: 5
+        max_epochs: 50
+        precision: 32
+        accumulate_grad_batches: 1
+        gradient_clip_val: 1
+        auto_lr_find: false
+    lr: 1e-3
