@@ -24,18 +24,28 @@ class BaselineLightningModule(pl.LightningModule):
                         nn.LayerNorm(64),
                         nn.LeakyReLU(),
                         nn.Linear(64, 10),
+                        nn.Sigmoid()
                     )
+    
     def forward(self, inputs):
-        out = self.model(inputs)
-        emotions = torch.sigmoid(out)
-        return emotions
+        outputs = self.model(inputs)
+        return outputs
+        
 
-    def training_step(self, batch):
-        feats = batch['compare']
+    def training_step(self, batch, batch_idx):
+        feats = batch['feature']
         gt_emotion = batch['emotion']
         pred_emotion = self(feats)
         loss = F.l1_loss(pred_emotion, gt_emotion, reduction='mean')
         self.log("train_loss", loss)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        feats = batch['feature']
+        gt_emotion = batch['emotion']
+        pred_emotion = self(feats)
+        loss = F.l1_loss(pred_emotion, gt_emotion, reduction='mean')
+        self.log("val_loss", loss)
         return loss
 
     def configure_optimizers(self):
