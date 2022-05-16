@@ -1,6 +1,7 @@
 filelists
 outputs
 fairseq
+*.txt
 
 
 # Byte-compiled / optimized / DLL files

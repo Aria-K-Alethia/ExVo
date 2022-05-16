@@ -4,6 +4,7 @@ import torchaudio
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
+import random
 
 from os.path import basename, exists, join
 
@@ -16,20 +17,15 @@ class DataModule(pl.LightningDataModule):
         self.cfg = cfg
         self.wav_path = cfg.dataset.wav_path
         self.feat_path = cfg.dataset.feat_path
-        self.sr = cfg.dataset.sr
         self.features = cfg.dataset.features
         
         ocwd = hydra.utils.get_original_cwd()
         self.ocwd = ocwd
-        self.wav_path = join(ocwd, self.wav_path)
-        self.feat_path = join(ocwd, self.feat_path)
 
     def get_loader(self, phase):
         phase_cfg = self.cfg.dataset.get(phase)
-        csv_path = phase_cfg.csv_path
-        csv_path = join(self.ocwd, csv_path)
         batch_size = phase_cfg.batch_size
-        ds = ExvoDataset(csv_path, self.wav_path, self.feat_path, self.features, self.sr)
+        ds = ExvoDataset(phase, self.cfg)
         dl = DataLoader(ds, batch_size, phase_cfg.shuffle, num_workers=8, collate_fn=ds.collate_fn)
 
         return dl
@@ -60,14 +56,17 @@ class ExvoDataset(Dataset):
 
     all_features = ['compare', 'deepspectrum', 'egemaps', 'openxbow']
 
-    def __init__(self, csv_path, wav_path, feat_path, features, sr):
+    def __init__(self, phase, cfg):
+        phase_cfg = cfg.dataset.get(phase)
         ocwd = hydra.utils.get_original_cwd()
-        self.csv_path = join(ocwd, csv_path)
-        self.wav_path = join(ocwd, wav_path)
-        self.feat_path = join(ocwd, feat_path)
-        self.sr = sr
+        self.cfg = cfg
+        self.csv_path = join(ocwd, phase_cfg.csv_path)
+        self.wav_path = join(ocwd, cfg.dataset.wav_path)
+        self.feat_path = join(ocwd, cfg.dataset.feat_path)
+        self.sr = cfg.dataset.sr
+        self.wav = cfg.dataset.wav
 
-        self.features = features
+        self.features = cfg.dataset.features
         self.csv = self.read_csv(self.csv_path)
 
     def read_csv(self, csv_path):
@@ -78,17 +77,25 @@ class ExvoDataset(Dataset):
         return len(self.csv)
 
     def __getitem__(self, index):
+        out = {}
         wav_id = self.csv.loc[index, 'id']
         fid = wav_id[:-4]
+        out['fid'] = fid
         speaker = int(self.csv.loc[index, 'speaker'].split('_')[-1])
         emotion = self.csv.loc[index, self.emotion_labels].to_numpy().astype('float')
-        
-        features = self.load_features(fid)
 
+        if self.wav:
+            wav = self.load_wav(fid)
+            out['wav'] = wav
+
+        features = self.load_features(fid)
         speaker = torch.LongTensor([speaker])
         emotion = torch.from_numpy(emotion)
+
+        out['features'] = features
+        out['speaker'] = speaker
+        out['emotion'] = emotion
         
-        out = dict(fid=fid, speaker=speaker, emotion=emotion, features=features)
         return out
 
     def collate_fn(self, batch):
@@ -105,7 +112,29 @@ class ExvoDataset(Dataset):
             out[feat_name] = feat
         feature = torch.cat(features, dim=-1)
         out['feature'] = feature
+
+        if self.cfg.dataset.wav:
+            wav = torch.stack([b['wav'] for b in batch]).squeeze(1)
+            out['wav'] = wav
         return out
+    
+    def load_wav(self, fid):
+        path = join(self.wav_path, f'{fid}.wav')
+        wav, sr = torchaudio.load(path)
+        if wav.shape[0] > 1:
+            wav = wav[:1,:]
+        assert sr == self.sr
+        max_length = int(self.cfg.dataset.max_wav_length * sr)
+        
+        # copy
+        while wav.shape[1] < max_length:
+            wav = torch.cat([wav, wav], -1)
+        # truncate
+        if wav.shape[1] > max_length:
+            idx = random.randint(0, wav.shape[1] - max_length)
+            wav = wav[:, idx:idx+max_length]
+        return wav
+         
 
     def load_features(self, fid):
         out = {}
