@@ -21,6 +21,7 @@ transformers = "^4.19.1"
 fairseq = "^0.10.2"
 speechbrain = "^0.5.11"
 webrtcvad = "^2.0.10"
+augment = {git = "https://github.com/facebookresearch/WavAugment.git", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 

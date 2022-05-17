@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import random
-
+import augment
+from data_augment import ChainRunner, random_time_warp, random_pitch_shift
 from os.path import basename, exists, join
-
 from torch.utils.data import Dataset, DataLoader
+from functools import partial
 import hydra
 
 class DataModule(pl.LightningDataModule):
@@ -60,6 +61,7 @@ class ExvoDataset(Dataset):
         phase_cfg = cfg.dataset.get(phase)
         ocwd = hydra.utils.get_original_cwd()
         self.cfg = cfg
+        self.phase = phase
         self.csv_path = join(ocwd, phase_cfg.csv_path)
         self.wav_path = join(ocwd, cfg.dataset.wav_path)
         self.feat_path = join(ocwd, cfg.dataset.feat_path)
@@ -68,6 +70,11 @@ class ExvoDataset(Dataset):
 
         self.features = cfg.dataset.features
         self.csv = self.read_csv(self.csv_path)
+
+        chain = augment.EffectChain()
+        #chain.pitch(partial(random_pitch_shift, a=-300, b=300)).rate(16000)
+        chain.tempo(partial(random_time_warp, f=2))
+        self.chain = ChainRunner(chain)
 
     def read_csv(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -124,6 +131,9 @@ class ExvoDataset(Dataset):
         if wav.shape[0] > 1:
             wav = wav[:1,:]
         assert sr == self.sr
+        #if self.phase == 'train':
+            #wav = self.chain(wav)
+
         max_length = int(self.cfg.dataset.max_wav_length * sr)
         
         # copy

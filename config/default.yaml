@@ -1,6 +1,6 @@
 model:
-    feat_dim: 1024 #6373
-    ssl_model: facebook/wav2vec2-large-xlsr-53 #facebook/wav2vec2-large-robust
+    feat_dim: 768 #6373
+    ssl_model: facebook/wav2vec2-base #facebook/wav2vec2-large-xlsr-53 #facebook/wav2vec2-large-robust
 dataset:
     wav_path: ../data/wav
     feat_path: ../data/feats
@@ -10,11 +10,11 @@ dataset:
     sr: 16000
     train:
         csv_path: filelists/exvo_train.csv
-        batch_size: 8
+        batch_size: 16
         shuffle: true
     val:
         csv_path: filelists/exvo_val.csv
-        batch_size: 8
+        batch_size: 16
         shuffle: false
 train:
     log_dir: train_log/
