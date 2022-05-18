@@ -12,8 +12,8 @@ def CCC(pred, gt):
     pred_mean = pred.mean(0)
     gt_mean = gt.mean(0)
 
-    pred_var = pred.var(0)
-    gt_var = gt.var(0)
+    pred_var = pred.var(0, unbiased=False)
+    gt_var = gt.var(0, unbiased=False)
     
     covar = (pred * gt).mean(0) - pred_mean * gt_mean
     ccc = 2 * covar / (pred_var + gt_var + (pred_mean - gt_mean)**2)
