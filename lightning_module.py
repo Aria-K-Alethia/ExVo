@@ -7,6 +7,8 @@ import pytorch_lightning as pl
 import utils
 from metric import CCC
 from itertools import chain
+from models.model import BaselineModel
+from models.loss import BaselineLoss, ContrastiveLoss, ClippedL1Loss
 
 class BaselineLightningModule(pl.LightningModule):
     def __init__(self, cfg):
@@ -14,7 +16,8 @@ class BaselineLightningModule(pl.LightningModule):
         self.cfg = cfg
         self.lr = cfg.train.lr
         self.construct_model()
-    
+        self.criterion = BaselineLoss()
+
     def construct_model(self):
         feat_dim = self.cfg.model.feat_dim
         self.feature_extractor = utils.load_ssl_model(self.cfg.model.ssl_model).wav2vec2 
@@ -34,7 +37,7 @@ class BaselineLightningModule(pl.LightningModule):
                         nn.Sigmoid()
                     )
         '''
-        self.model = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
+        self.model = BaselineModel(feat_dim)
         print(self.model)
     
     def forward(self, inputs):
@@ -53,27 +56,37 @@ class BaselineLightningModule(pl.LightningModule):
         feats = batch['wav']
         gt_emotion = batch['emotion']
         pred_emotion = self(feats)
-        loss = F.l1_loss(pred_emotion, gt_emotion, reduction='mean')
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=feats.shape[0])
+        
+        loss_dict = self.criterion(pred_emotion, gt_emotion)
+        loss = loss_dict['loss']
+        
+        #self.log("train_con_loss", con_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=feats.shape[0])
+        #self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=feats.shape[0])
+        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=feats.shape[0])
+
         return loss
 
     def validation_step(self, batch, batch_idx):
         feats = batch['wav']
         gt_emotion = batch['emotion']
         pred_emotion = self(feats)
-        loss = F.l1_loss(pred_emotion, gt_emotion, reduction='mean')
-
+        
+        loss_dict = self.criterion(pred_emotion, gt_emotion)
+    
         # collect results and metrics
-        out = {'gt_emotion': gt_emotion.detach().cpu(), 'pred_emotion': pred_emotion.detach().cpu(), 'loss': loss.detach().cpu()}
+        out = {'gt_emotion': gt_emotion.detach().cpu(), 'pred_emotion': pred_emotion.detach().cpu()}
+        out.update({k: v.detach().cpu() for k, v in loss_dict.items()})
 
         return out
 
     def validation_epoch_end(self, outputs):
+        #val_con_loss = torch.stack([out['con_loss'] for out in outputs]).mean().item()
         val_loss = torch.stack([out['loss'] for out in outputs]).mean().item()
         gt_emotion = torch.cat([out['gt_emotion'] for out in outputs], 0)
         pred_emotion = torch.cat([out['pred_emotion'] for out in outputs], 0)
         ccc = CCC(pred_emotion, gt_emotion)
         self.log('val_loss', val_loss, on_epoch=True, prog_bar=True, logger=True)
+        #self.log('val_con_loss', val_con_loss, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_ccc', ccc, on_epoch=True, prog_bar=True, logger=True)
 
     def configure_optimizers(self):

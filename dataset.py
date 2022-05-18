@@ -72,8 +72,8 @@ class ExvoDataset(Dataset):
         self.csv = self.read_csv(self.csv_path)
 
         chain = augment.EffectChain()
-        #chain.pitch(partial(random_pitch_shift, a=-300, b=300)).rate(16000)
-        chain.tempo(partial(random_time_warp, f=2))
+        chain.pitch(partial(random_pitch_shift, a=-500, b=500)).rate(16000)
+        #chain.tempo(partial(random_time_warp, f=2))
         self.chain = ChainRunner(chain)
 
     def read_csv(self, csv_path):
