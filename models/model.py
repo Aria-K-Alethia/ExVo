@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from utils import grad_reverse
 
 class BaselineModel(nn.Module):
     def __init__(self, feat_dim):
@@ -22,6 +23,6 @@ class DAModel(nn.Module):
 
     def forward(self, feat):
         emotion = self.emotion_layer(feat)
-        speaker_emb = self.speaker_layer(feat)
+        speaker_emb = self.speaker_layer(feat.detach())
         speaker_emb = speaker_emb / speaker_emb.norm(2, dim=1, keepdim=True)
         return dict(emotion=emotion, speaker_embedding=speaker_emb)

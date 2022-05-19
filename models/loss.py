@@ -26,7 +26,7 @@ class DALoss(nn.Module):
     def forward(self, pred, gt, spkr_emb, spkr):
         l1_loss = self.l1(pred, gt)
         spkr_loss = self.ge2e(spkr_emb)
-        loss = l1_loss + 0.1*spkr_loss
+        loss = l1_loss + spkr_loss
         return dict(loss=loss, l1_loss=l1_loss, spkr_loss=spkr_loss)
 
 
