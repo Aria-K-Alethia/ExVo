@@ -1,0 +1,2 @@
+feat_dim: 768 #6373
+ssl_model: facebook/wav2vec2-base #facebook/hubert-large-ll60k #facebook/wav2vec2-large-xlsr-53 #facebook/wav2vec2-large-robust

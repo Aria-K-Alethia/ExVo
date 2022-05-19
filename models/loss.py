@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from metric import CCC
+from utils import get_similarity, get_contrast_loss, get_softmax_loss
 
 class BaselineLoss(nn.Module):
     def __init__(self):
@@ -19,12 +20,13 @@ class BaselineLoss(nn.Module):
 class DALoss(nn.Module):
     def __init__(self):
         super().__init__()
-        self.l1 = nn.L1Loss()
+        self.l1 = CCCLoss()
         self.ge2e = GE2ELoss()
     
     def forward(self, pred, gt, spkr_emb, spkr):
         l1_loss = self.l1(pred, gt)
-        spkr_loss = self.ge2e(spkr_emb, spkr)
+        spkr_loss = self.ge2e(spkr_emb)
+        loss = l1_loss + 0.1*spkr_loss
         return dict(loss=loss, l1_loss=l1_loss, spkr_loss=spkr_loss)
 
 
@@ -53,6 +55,10 @@ class CCCLoss(nn.Module):
         super().__init__()
     
     def forward(self, pred, gt):
+        assert pred.shape == gt.shape
+        if pred.dim() > 2:
+            pred = pred.reshape(-1, pred.shape[-1])
+            gt = gt.reshape(-1, gt.shape[-1])
         ccc = CCC(pred, gt)
         loss = 1 - ccc
         return loss

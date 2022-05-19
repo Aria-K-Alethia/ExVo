@@ -14,7 +14,7 @@ class BaselineModel(nn.Module):
         return out
 
 class DAModel(nn.Module):
-    def __init__(self, feat_dim, speaker_emb_dim):
+    def __init__(self, feat_dim, speaker_emb_dim=64):
         super().__init__()
         #self.inorm = nn.InstanceNorm1d(feat_dim)
         self.emotion_layer = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
@@ -23,5 +23,5 @@ class DAModel(nn.Module):
     def forward(self, feat):
         emotion = self.emotion_layer(feat)
         speaker_emb = self.speaker_layer(feat)
-        speaker_emb = speaker_emb / speaker_emb.norm(2, dim=1, keep_dim=True)
+        speaker_emb = speaker_emb / speaker_emb.norm(2, dim=1, keepdim=True)
         return dict(emotion=emotion, speaker_embedding=speaker_emb)

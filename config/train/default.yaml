@@ -1,0 +1,10 @@
+log_dir: train_log/
+trainer:
+    gpus: 1
+    min_epochs: 15
+    max_epochs: 50
+    precision: 16
+    accumulate_grad_batches: 1
+    gradient_clip_val: 1
+    auto_lr_find: false
+lr: 1e-4

@@ -1,29 +1,4 @@
-model:
-    feat_dim: 768 #6373
-    ssl_model: facebook/wav2vec2-base #facebook/wav2vec2-large-xlsr-53 #facebook/wav2vec2-large-robust
-dataset:
-    wav_path: ../data/wav
-    feat_path: ../data/feats
-    wav: true
-    max_wav_length: 3.5
-    features: ['compare']
-    sr: 16000
-    train:
-        csv_path: filelists/exvo_train.csv
-        batch_size: 16
-        shuffle: true
-    val:
-        csv_path: filelists/exvo_val.csv
-        batch_size: 16
-        shuffle: false
-train:
-    log_dir: train_log/
-    trainer:
-        gpus: 1
-        min_epochs: 15
-        max_epochs: 50
-        precision: 16
-        accumulate_grad_batches: 1
-        gradient_clip_val: 1
-        auto_lr_find: false
-    lr: 1e-4
+defaults:
+    - dataset: default
+    - model: default
+    - train: default

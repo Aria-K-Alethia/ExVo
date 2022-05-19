@@ -26,6 +26,7 @@ class DataModule(pl.LightningDataModule):
     def get_loader(self, phase):
         phase_cfg = self.cfg.dataset.get(phase)
         batch_size = phase_cfg.batch_size
+        #ds = hydra.utils.instantiate(self.cfg.dataset.dataset, phase, self.cfg)
         ds = ExvoDataset(phase, self.cfg)
         dl = DataLoader(ds, batch_size, phase_cfg.shuffle, num_workers=8, collate_fn=ds.collate_fn)
 
@@ -40,6 +41,37 @@ class DataModule(pl.LightningDataModule):
     def test_dataloader(self):
         return self.get_loader('test')
 
+class DADataModule(pl.LightningDataModule):
+    def __init__(self, cfg):
+        super().__init__()
+        self.cfg = cfg
+        self.wav_path = cfg.dataset.wav_path
+        self.feat_path = cfg.dataset.feat_path
+        self.features = cfg.dataset.features
+        
+        ocwd = hydra.utils.get_original_cwd()
+        self.ocwd = ocwd
+
+    def get_loader(self, phase):
+        phase_cfg = self.cfg.dataset.get(phase)
+        batch_size = phase_cfg.batch_size
+        #ds = hydra.utils.instantiate(self.cfg.dataset.dataset, phase, self.cfg)
+        if phase == 'train':
+            ds = ExvoSpeakerDataset(phase, self.cfg)
+        else:
+            ds = ExvoDataset(phase, self.cfg)
+        dl = DataLoader(ds, batch_size, phase_cfg.shuffle, num_workers=8, collate_fn=ds.collate_fn)
+
+        return dl
+
+    def train_dataloader(self):
+        return self.get_loader('train')
+
+    def val_dataloader(self):
+        return self.get_loader('val')
+
+    def test_dataloader(self):
+        return self.get_loader('test')
 
 class ExvoDataset(Dataset):
     emotion_labels = [
@@ -168,6 +200,81 @@ class ExvoDataset(Dataset):
         feat = [float(item) for item in lines[1][1:]]
         feat = torch.FloatTensor(feat)
         return feat
+
+class ExvoSpeakerDataset(ExvoDataset):
+    emotion_labels = [
+        "Awe",
+        "Excitement",
+        "Amusement",
+        "Awkwardness",
+        "Fear",
+        "Horror",
+        "Distress",
+        "Triumph",
+        "Sadness",
+        "Surprise",
+    ]
+
+    all_features = ['compare', 'deepspectrum', 'egemaps', 'openxbow']
+
+    def __init__(self, phase, cfg):
+        super().__init__(phase, cfg)
+        self.spkr2data = [item[1] for item in list(self.csv.groupby('speaker'))]
+        
+    def __len__(self):
+        return 9 * len(self.spkr2data)
+
+    def __getitem__(self, index):
+        index = index % len(self.spkr2data)
+        out = {}
+        M = self.cfg.dataset.utterance_per_speaker
+        data = self.spkr2data[index].sample(M)
+        speaker = int(data.iloc[0]['speaker'].split('_')[-1])
+        speaker = [speaker] * M
+        emotion = data.loc[:, self.emotion_labels].to_numpy().astype('float')
+        fids = [wavid[:-4] for wavid in data['id']]
+        out['fid'] = fids
+
+        if self.wav:
+            wav = []
+            for fid in fids:
+                wav.append(self.load_wav(fid))
+            wav = torch.stack(wav)
+            out['wav'] = wav
+        
+        features = [self.load_features(fid) for fid in fids]
+        speaker = torch.LongTensor(speaker)
+        emotion = torch.from_numpy(emotion)
+        
+        out['features'] = features
+        out['speaker'] = speaker
+        out['emotion'] = emotion
+        
+        return out
+
+    def collate_fn(self, batch):
+        fids = [b['fid'] for b in batch]
+        speaker = torch.stack([b['speaker'] for b in batch]).squeeze()
+        emotion = torch.stack([b['emotion'] for b in batch]).squeeze()
+        feat_names = list(batch[0]['features'][0].keys())
+        
+        out = {'fids': fids, 'speaker': speaker, 'emotion': emotion}
+        features = []
+        for feat_name in feat_names:
+            feat = [item[feat_name] for b in batch for item in b['features']]
+            feat = torch.stack(feat)
+            feat = feat.reshape(emotion.shape[0], emotion.shape[1], feat.shape[-1])
+            features.append(feat)
+            out[feat_name] = feat
+        feature = torch.cat(features, dim=-1)
+        out['feature'] = feature
+
+        if self.cfg.dataset.wav:
+            wav = torch.stack([b['wav'] for b in batch]).squeeze(2)
+            out['wav'] = wav
+
+        return out
+
 
 if __name__ == '__main__':
     dataset = ExvoDataset('filelists/exvo_train.csv', '../data/wav', '../data/feats', ['compare'], 16000)

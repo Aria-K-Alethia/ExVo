@@ -14,8 +14,7 @@ tgt_dir = '../data/wav_trimmed'
 top_db = 60
 
 def trim_silence(wav, top_db=60):
-    return librosa.effects.trim(wav, top_db)
-    '''
+    #return librosa.effects.trim(wav, top_db)
     intervals = librosa.effects.split(wav, top_db=top_db)
     buf = []
     for s, e in intervals:
@@ -23,7 +22,6 @@ def trim_silence(wav, top_db=60):
         buf.append(segment)
     out = np.concatenate(buf, axis=0)
     return out, intervals
-    '''
 
 # trim silence
 def process_silence():
@@ -99,4 +97,5 @@ def process_enhancement():
 
 
 if __name__ == '__main__':
-    process_channel()
+    #process_channel()
+    process_silence()
