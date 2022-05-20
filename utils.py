@@ -25,6 +25,15 @@ class GradReverse(Function):
 def grad_reverse(x, lambd=1.0):
     return GradReverse().apply(x, lambd)
 
+def linear_lr_with_warmup(current_step, warmup_steps, flat_steps, training_steps):
+    if current_step < warmup_steps:
+        return float(current_step) / float(max(1, warmup_steps))
+    elif current_step < (warmup_steps + flat_steps):
+        return 1.0
+    return max(
+        0.0, float(training_steps - current_step) / float(max(1, training_steps - (warmup_steps + flat_steps)))
+    )
+
 def load_ssl_model(model_path):
     ocwd = hydra.utils.get_original_cwd()
     path = join(ocwd, model_path)

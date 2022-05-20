@@ -6,10 +6,12 @@ import torch.optim as optim
 import pytorch_lightning as pl
 import utils
 import random
+from functools import partial
 from metric import CCC
 from itertools import chain
 from models.model import BaselineModel, DAModel, Wav2vecWrapper
 from models.loss import BaselineLoss, DALoss, ContrastiveLoss, ClippedL1Loss
+from utils import linear_lr_with_warmup 
 
 class BaselineLightningModule(pl.LightningModule):
     def __init__(self, cfg):
@@ -51,10 +53,10 @@ class BaselineLightningModule(pl.LightningModule):
     def extract_feature(self, inputs):
         # inputs: [#B, #seq_len]
         out = self.feature_extractor(inputs)
-        mean = out.mean(1)
+        #mean = out.mean(1)
         #std = out.std(1, unbiased=False)
         #out = torch.cat([mean, std], dim=-1)
-        return mean
+        return out
 
     def training_step(self, batch, batch_idx):
         feats = batch['wav']
@@ -99,6 +101,9 @@ class BaselineLightningModule(pl.LightningModule):
                     {'params': self.feature_extractor.parameters(), 'lr': 1e-5}])
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, min_lr=1e-6, verbose=True)
         scheduler_config = {'scheduler': scheduler, 'interval': 'epoch', 'frequency': 1, 'monitor': 'val_ccc'}
+        #warmup_lambda = partial(linear_lr_with_warmup, warmup_steps=2400, flat_steps=4800, training_steps=30000)
+        #scheduler = optim.lr_scheduler.LambdaLR(optimizer, warmup_lambda, verbose=False)
+        #scheduler_config = {'scheduler': scheduler, 'interval': 'step', 'frequency': 1}
         return {'optimizer': optimizer, 'lr_scheduler': scheduler_config}
 
 class DALightningModule(pl.LightningModule):

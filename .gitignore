@@ -1,6 +1,7 @@
 filelists
 outputs
 fairseq
+ser_ckpt
 *.txt
 
 

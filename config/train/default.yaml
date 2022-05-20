@@ -1,8 +1,10 @@
 log_dir: train_log/
 trainer:
     gpus: 1
-    min_epochs: 15
+    min_epochs: 10
     max_epochs: 50
+    #min_steps: 10000
+    #max_steps: 30000
     precision: 16
     accumulate_grad_batches: 1
     gradient_clip_val: 1
