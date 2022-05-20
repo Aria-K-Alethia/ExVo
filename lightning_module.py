@@ -8,7 +8,7 @@ import utils
 import random
 from metric import CCC
 from itertools import chain
-from models.model import BaselineModel, DAModel
+from models.model import BaselineModel, DAModel, Wav2vecWrapper
 from models.loss import BaselineLoss, DALoss, ContrastiveLoss, ClippedL1Loss
 
 class BaselineLightningModule(pl.LightningModule):
@@ -21,7 +21,7 @@ class BaselineLightningModule(pl.LightningModule):
 
     def construct_model(self):
         feat_dim = self.cfg.model.feat_dim
-        self.feature_extractor = utils.load_ssl_model(self.cfg.model.ssl_model)
+        self.feature_extractor = Wav2vecWrapper(self.cfg)
         '''
         self.model = nn.Sequential(
                         nn.BatchNorm1d(feat_dim),
@@ -50,7 +50,7 @@ class BaselineLightningModule(pl.LightningModule):
         
     def extract_feature(self, inputs):
         # inputs: [#B, #seq_len]
-        out = self.feature_extractor(inputs).last_hidden_state
+        out = self.feature_extractor(inputs)
         mean = out.mean(1)
         #std = out.std(1, unbiased=False)
         #out = torch.cat([mean, std], dim=-1)

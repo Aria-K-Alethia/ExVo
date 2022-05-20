@@ -33,7 +33,7 @@ def load_ssl_model(model_path):
     #model = model[0]
     #model.remove_pretraining_modules()
     if 'wav2vec2' in model_path:
-        model = transformers.Wav2Vec2ForPreTraining.from_pretrained(model_path).wav2vec2
+        model = transformers.Wav2Vec2ForPreTraining.from_pretrained(model_path)
     elif 'hubert' in model_path:
         model = transformers.HubertModel.from_pretrained(model_path)
     return model
