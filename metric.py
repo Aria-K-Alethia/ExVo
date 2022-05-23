@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-def CCC(pred, gt):
+def CCC(pred, gt, output_single=False):
     '''
         Compute CCC
         Args:
@@ -17,11 +17,13 @@ def CCC(pred, gt):
     
     covar = (pred * gt).mean(0) - pred_mean * gt_mean
     ccc = 2 * covar / (pred_var + gt_var + (pred_mean - gt_mean)**2)
-    ccc = ccc.mean()
+    ccc_mean = ccc.mean()
 
     #covar2 = torch.mean((pred - pred_mean.unsqueeze(0)) * (gt - gt_mean.unsqueeze(0)), 0)
     #ccc2 = 2 * covar2 / (pred_var + gt_var + (pred_mean - gt_mean)**2)
-    return ccc
+    if output_single:
+        return ccc_mean, ccc
+    return ccc_mean
     
 if __name__ == '__main__':
     a = torch.randn(2000, 10)

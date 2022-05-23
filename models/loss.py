@@ -8,14 +8,22 @@ class BaselineLoss(nn.Module):
         super().__init__()
         #self.l1 = ClippedL1Loss(0.05)
         #self.l1 = ShrinkageLoss(10, 0.1)
-        self.l1 = CCCLoss()
+        #self.l1 = ShrinkageLoss(10, 0.05)
+        self.ccc = CCCLoss()
         #self.contrastive = ContrastiveLoss(0.2)
         
     def forward(self, pred, gt):
-        l1_loss = self.l1(pred, gt)
-        #con_loss = self.contrastive(pred, gt)
-        loss = l1_loss
-        return dict(loss=loss, l1_loss=l1_loss)
+        # for prediction of each layer, compute the loss
+        out = {}
+        loss = 0
+        for k, p in pred.items(): 
+            #l1_loss = self.l1(pred, gt)
+            ccc_loss = self.ccc(p, gt)
+            #con_loss = self.contrastive(pred, gt)
+            out[f'{k}_ccc_loss'] = ccc_loss
+            loss += ccc_loss
+        out['loss'] = loss
+        return out
 
 class DALoss(nn.Module):
     def __init__(self):

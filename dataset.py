@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchaudio
 import numpy as np
 import pandas as pd
@@ -86,6 +87,18 @@ class ExvoDataset(Dataset):
         "Sadness",
         "Surprise",
     ]
+    decreasing_label_order = [
+        "Awe",
+        "Surprise",
+        "Amusement",
+        "Fear",
+        "Horror",
+        "Sadness",
+        "Distress",
+        "Excitement",
+        "Triumph",
+        "Awkwardness"
+    ]
 
     all_features = ['compare', 'deepspectrum', 'egemaps', 'openxbow']
 
@@ -121,7 +134,7 @@ class ExvoDataset(Dataset):
         fid = wav_id[:-4]
         out['fid'] = fid
         speaker = int(self.csv.loc[index, 'speaker'].split('_')[-1])
-        emotion = self.csv.loc[index, self.emotion_labels].to_numpy().astype('float')
+        emotion = self.csv.loc[index, self.decreasing_label_order].to_numpy().astype('float')
 
         if self.wav:
             wav = self.load_wav(fid)
@@ -153,7 +166,9 @@ class ExvoDataset(Dataset):
         out['feature'] = feature
 
         if self.cfg.dataset.wav:
-            wav = torch.stack([b['wav'] for b in batch]).squeeze(1)
+            max_length = max(b['wav'].shape[1] for b in batch)
+            buf = [F.pad(b['wav'], [0, max_length-b['wav'].shape[1]]) for b in batch]
+            wav = torch.stack(buf).squeeze(1)
             out['wav'] = wav
         return out
     

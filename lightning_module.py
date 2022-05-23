@@ -9,7 +9,7 @@ import random
 from functools import partial
 from metric import CCC
 from itertools import chain
-from models.model import BaselineModel, DAModel, Wav2vecWrapper
+from models.model import BaselineModel, DAModel, Wav2vecWrapper, RNNCCModel, ChainModel
 from models.loss import BaselineLoss, DALoss, ContrastiveLoss, ClippedL1Loss
 from utils import linear_lr_with_warmup 
 
@@ -40,14 +40,15 @@ class BaselineLightningModule(pl.LightningModule):
                         nn.Sigmoid()
                     )
         '''
-        self.model = BaselineModel(feat_dim)
+        #self.model = BaselineModel(feat_dim)
+        self.model = RNNCCModel(feat_dim)
         print(self.model)
     
-    def forward(self, inputs):
+    def forward(self, inputs, gt=None):
         feat = self.extract_feature(inputs)
         #var = feat['x'].var(1)
         #feat = torch.cat([mean, var], 1)
-        outputs = self.model(feat)
+        outputs = self.model(feat, gt=gt)
         return outputs
         
     def extract_feature(self, inputs):
@@ -58,10 +59,14 @@ class BaselineLightningModule(pl.LightningModule):
         #out = torch.cat([mean, std], dim=-1)
         return out
 
+    def training_epoch_end(self, outputs):
+        if hasattr(self.model, 'set_epoch'):
+            self.model.set_epoch(self.current_epoch+1)
+
     def training_step(self, batch, batch_idx):
         feats = batch['wav']
         gt_emotion = batch['emotion']
-        pred_emotion = self(feats)
+        pred_emotion = self(feats, gt=gt_emotion)
         
         loss_dict = self.criterion(pred_emotion, gt_emotion)
         loss = loss_dict['loss']
@@ -80,7 +85,7 @@ class BaselineLightningModule(pl.LightningModule):
         loss_dict = self.criterion(pred_emotion, gt_emotion)
     
         # collect results and metrics
-        out = {'gt_emotion': gt_emotion.detach().cpu(), 'pred_emotion': pred_emotion.detach().cpu()}
+        out = {'gt_emotion': gt_emotion.detach().cpu(), 'pred_emotion': pred_emotion['pred_final'].detach().cpu()}
         out.update({k: v.detach().cpu() for k, v in loss_dict.items()})
 
         return out
@@ -90,7 +95,8 @@ class BaselineLightningModule(pl.LightningModule):
         val_loss = torch.stack([out['loss'] for out in outputs]).mean().item()
         gt_emotion = torch.cat([out['gt_emotion'] for out in outputs], 0)
         pred_emotion = torch.cat([out['pred_emotion'] for out in outputs], 0)
-        ccc = CCC(pred_emotion, gt_emotion)
+        ccc, ccc_single = CCC(pred_emotion, gt_emotion, output_single=True)
+        print(f'ccc_single: {ccc_single}')
         self.log('val_loss', val_loss, on_epoch=True, prog_bar=True, logger=True)
         #self.log('val_con_loss', val_con_loss, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_ccc', ccc, on_epoch=True, prog_bar=True, logger=True)
