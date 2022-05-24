@@ -190,8 +190,9 @@ class ExvoDataset(Dataset):
         max_length = int(self.cfg.dataset.max_wav_length * sr)
         
         # copy
-        while wav.shape[1] < max_length:
-            wav = torch.cat([wav, wav], -1)
+        if self.cfg.dataset.copy:
+            while wav.shape[1] < max_length:
+                wav = torch.cat([wav, wav], -1)
         # truncate
         if wav.shape[1] > max_length:
             idx = random.randint(0, wav.shape[1] - max_length)

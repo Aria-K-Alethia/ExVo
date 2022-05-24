@@ -12,8 +12,8 @@ class BaselineLoss(nn.Module):
         #self.l1 = ClippedL1Loss(0.05)
         #self.l1 = ShrinkageLoss(10, 0.1)
         #self.l1 = ShrinkageLoss(10, 0.05)
-        self.ccc = CCCLoss()
         #weight = compute_emotion_weights(join(hydra.utils.get_original_cwd(), cfg.dataset.train.csv_path), ExvoDataset.emotion_labels)
+        self.ccc = CCCLoss()
         #self.ce = nn.CrossEntropyLoss(weight=weight)
         
     def forward(self, pred, batch):
@@ -70,15 +70,21 @@ class GE2ELoss(nn.Module):
         return loss
 
 class CCCLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, weight=None):
         super().__init__()
-    
+        if weight is not None:
+            self.weight = nn.Parameter(weight, requires_grad=False)
+        else:
+            self.weight = None
+
     def forward(self, pred, gt):
         assert pred.shape == gt.shape
         if pred.dim() > 2:
             pred = pred.reshape(-1, pred.shape[-1])
             gt = gt.reshape(-1, gt.shape[-1])
-        ccc = CCC(pred, gt)
+        ccc, single = CCC(pred, gt, True)
+        if self.weight is not None:
+            ccc = (single * self.weight).sum()
         loss = 1 - ccc
         return loss
 

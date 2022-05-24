@@ -4,7 +4,7 @@ trainer:
     max_epochs: 50
     #min_steps: 10000
     #max_steps: 30000
-    precision: 32
+    precision: 16
     accumulate_grad_batches: 1
     gradient_clip_val: 1
     auto_lr_find: false
