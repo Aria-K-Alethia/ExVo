@@ -4,8 +4,21 @@ import hydra
 import fairseq
 import transformers
 import torch.nn.functional as F
+import pandas as pd
+from collections import Counter
 from os.path import join, basename, exists
 from torch.autograd import Function
+
+def compute_emotion_weights(train_csv, emos=None):
+    df = pd.read_csv(train_csv)
+    if emos is None:
+        emos = list(df.columns)[-10:]
+    assert len(emos) == 10
+    c = Counter(list(df['type']))
+    weights = torch.tensor([c[e] for e in emos])
+    weights = weights.sum() / weights
+    weights = weights / weights.sum()
+    return weights
 
 class GradReverse(Function):
     """
@@ -24,6 +37,21 @@ class GradReverse(Function):
 
 def grad_reverse(x, lambd=1.0):
     return GradReverse().apply(x, lambd)
+
+class ArgMax(Function):
+    @staticmethod
+    def forward(ctx, input):
+        idx = torch.argmax(input, dim=1)
+        #output = torch.zeros_like(input, device=input.device)
+        #output.scatter_(1, idx, 1)
+        return idx
+        
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output
+
+def sf_argmax(x):
+    return ArgMax().apply(x)
 
 def linear_lr_with_warmup(current_step, warmup_steps, flat_steps, training_steps):
     if current_step < warmup_steps:

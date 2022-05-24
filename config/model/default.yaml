@@ -1,3 +1,8 @@
-feat_dim: 768 #6373
+feature_extractor:
+    _target_: models.model.EmptyModule
+model:
+    _target_: models.model.BaselineModel
+    feat_dim: 6373 #6373
+feature: compare
 ssl_model: facebook/wav2vec2-base #facebook/hubert-large-ll60k #facebook/wav2vec2-large-xlsr-53 #facebook/wav2vec2-large-robust
 ssl_ser_ckpt: null #ser_ckpt/last.ckpt

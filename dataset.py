@@ -87,6 +87,7 @@ class ExvoDataset(Dataset):
         "Sadness",
         "Surprise",
     ]
+    emotion2index = {e: i for i, e in enumerate(emotion_labels)}
     decreasing_label_order = [
         "Awe",
         "Surprise",
@@ -117,9 +118,9 @@ class ExvoDataset(Dataset):
         self.csv = self.read_csv(self.csv_path)
 
         chain = augment.EffectChain()
-        chain.pitch(partial(random_pitch_shift, a=-500, b=500)).rate(16000)
+        #chain.pitch(partial(random_pitch_shift, a=-500, b=500)).rate(16000)
         #chain.tempo(partial(random_time_warp, f=2))
-        self.chain = ChainRunner(chain)
+        #self.chain = ChainRunner(chain)
 
     def read_csv(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -134,7 +135,8 @@ class ExvoDataset(Dataset):
         fid = wav_id[:-4]
         out['fid'] = fid
         speaker = int(self.csv.loc[index, 'speaker'].split('_')[-1])
-        emotion = self.csv.loc[index, self.decreasing_label_order].to_numpy().astype('float')
+        main_emotion = self.emotion2index[self.csv.loc[index, 'type']]
+        emotion = self.csv.loc[index, self.emotion_labels].to_numpy().astype('float')
 
         if self.wav:
             wav = self.load_wav(fid)
@@ -143,10 +145,12 @@ class ExvoDataset(Dataset):
         features = self.load_features(fid)
         speaker = torch.LongTensor([speaker])
         emotion = torch.from_numpy(emotion)
+        main_emotion = torch.LongTensor([main_emotion])
 
         out['features'] = features
         out['speaker'] = speaker
         out['emotion'] = emotion
+        out['main_emotion'] = main_emotion
         
         return out
 
@@ -154,8 +158,10 @@ class ExvoDataset(Dataset):
         fids = [b['fid'] for b in batch]
         speaker = torch.stack([b['speaker'] for b in batch]).squeeze()
         emotion = torch.stack([b['emotion'] for b in batch])
+        main_emotion = torch.stack([b['main_emotion'] for b in batch]).squeeze()
+
         feat_names = list(batch[0]['features'].keys())
-        out = {'fids': fids, 'speaker': speaker, 'emotion': emotion} 
+        out = {'fids': fids, 'speaker': speaker, 'emotion': emotion, 'main_emotion': main_emotion} 
         features = []
         for feat_name in feat_names:
             feat = [b['features'][feat_name] for b in batch]

@@ -1,27 +1,38 @@
 import torch
 import torch.nn as nn
+import hydra
+from os.path import join
 from metric import CCC
-from utils import get_similarity, get_contrast_loss, get_softmax_loss
+from utils import compute_emotion_weights, get_similarity, get_contrast_loss, get_softmax_loss
+from dataset import ExvoDataset
 
 class BaselineLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, cfg):
         super().__init__()
         #self.l1 = ClippedL1Loss(0.05)
         #self.l1 = ShrinkageLoss(10, 0.1)
         #self.l1 = ShrinkageLoss(10, 0.05)
         self.ccc = CCCLoss()
-        #self.contrastive = ContrastiveLoss(0.2)
+        #weight = compute_emotion_weights(join(hydra.utils.get_original_cwd(), cfg.dataset.train.csv_path), ExvoDataset.emotion_labels)
+        #self.ce = nn.CrossEntropyLoss(weight=weight)
         
-    def forward(self, pred, gt):
+    def forward(self, pred, batch):
         # for prediction of each layer, compute the loss
         out = {}
         loss = 0
-        for k, p in pred.items(): 
+        gt = batch['emotion']
+        gt_main = batch['main_emotion']
+        for k, p in pred.items():
+            if not k.startswith('pred'):
+                continue
             #l1_loss = self.l1(pred, gt)
             ccc_loss = self.ccc(p, gt)
             #con_loss = self.contrastive(pred, gt)
             out[f'{k}_ccc_loss'] = ccc_loss
             loss += ccc_loss
+        #main_loss = self.ce(pred['main_emotion'], gt_main)
+        #out['main_emo_loss'] = main_loss
+        #loss += main_loss
         out['loss'] = loss
         return out
 

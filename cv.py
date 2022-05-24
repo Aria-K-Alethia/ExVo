@@ -1,5 +1,8 @@
-import pytorch_lightning as pl
+import torch
 import hydra
+import numpy as np
+import pytorch_lightning as pl
+from os.path import join, basename, exists
 from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers.csv_logs import CSVLogger
@@ -12,15 +15,37 @@ from lightning_module import BaselineLightningModule
 seed = 1024
 seed_everything(seed)
 
-@hydra.main(config_path='config', config_name='default')
-def train(cfg):
+@hydra.main(config_path='config', config_name='cv')
+def cross_validation(cfg):
+    n_fold = cfg.nfold
+    best_scores = []
+    best_ckpt_paths = []
+    parent_dir = cfg.train.log_dir
+    for i in range(n_fold):
+        save_dir = join(parent_dir, f'split_{i}')
+        cfg.dataset.train.csv_path = f'filelists/train_split_{i}.csv'
+        cfg.dataset.val.csv_path = f'filelists/val_split_{i}.csv'
+        best_score, best_ckpt_path = train(cfg, i, save_dir)
+        best_scores.append(best_score)
+        best_ckpt_paths.append(best_ckpt_path)
+   best_scores = np.array(best_scores)
+   print(f'CV ends, avg best score: {best_scores.mean()} + {best_scores.std()}')
+   score_path = join(parent_dir, 'best_scores.pt')
+   print(f'Save best scores to {score_path}')
+   torch.save(best_scores, score_path)
+   ckpt_path = join(parent_dir, 'best_ckpt_paths.pt')
+   print(f'Save best ckpt paths to {ckpt_path}')
+   torch.save(best_ckpt_paths, ckpt_path)
+    
+    
+def train(cfg, i_cv, save_dir):
     # loggers
-    csvlogger = CSVLogger(save_dir=cfg.log_dir, name='csv')
-    tblogger = TensorBoardLogger(save_dir=cfg.log_dir, name='tb')
+    csvlogger = CSVLogger(save_dir=save_dir, name='csv')
+    tblogger = TensorBoardLogger(save_dir=save_dir, name='tb')
     loggers = [csvlogger, tblogger]
 
     # callbacks
-    checkpoint_callback = ModelCheckpoint(dirpath=cfg.log_dir, 
+    checkpoint_callback = ModelCheckpoint(dirpath=save_dir, 
                             save_top_k=1, save_last=True,
                             every_n_epochs=1, monitor='val_ccc', mode='max')
     earlystop_callback = EarlyStopping(monitor='val_loss', min_delta=1e-4,
@@ -33,10 +58,9 @@ def train(cfg):
     lightning_module = BaselineLightningModule(cfg)
     trainer = pl.Trainer(**cfg.train.trainer, default_root_dir=hydra.utils.get_original_cwd(),
                     logger=loggers, callbacks=callbacks)
-    #trainer.tune(lightning_module, datamodule=datamodule)
     trainer.fit(lightning_module, datamodule=datamodule)
     print(f'Training ends, best score: {checkpoint_callback.best_model_score}, ckpt path: {checkpoint_callback.best_model_path}')
-
+    return checkpoint_callback.best_model_score, checkpoint_callback.best_model_path 
 
 if __name__ == '__main__':
-    train()
+    cross_validation()

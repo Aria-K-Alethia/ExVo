@@ -2,7 +2,7 @@ wav_path: ../data/wav_trimmed
 feat_path: ../data/feats
 wav: true
 max_wav_length: 3.5
-features: ['egemaps']
+features: ['compare']
 sr: 16000
 utterance_per_speaker: 4 #currently only used for DA training
 dataset:

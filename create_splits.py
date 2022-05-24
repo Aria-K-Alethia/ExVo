@@ -33,7 +33,7 @@ def create_splits(data_path, save_path):
     data_info = np.loadtxt(str(data_path), dtype=str, delimiter=",")
 
     split2files = defaultdict(list)
-    heads = ['id', 'speaker', 'Awe', 'Excitement', 'Amusement', 'Awkwardness', 'Fear', 'Horror', 'Distress', 'Triumph', 'Sadness', 'Surprise']
+    heads = ['id', 'speaker', 'type', 'Awe', 'Excitement', 'Amusement', 'Awkwardness', 'Fear', 'Horror', 'Distress', 'Triumph', 'Sadness', 'Surprise']
     for i, x in enumerate(data_info[1:]):
         filename = x[0][1:-1] + ".wav"
         split = x[1]
@@ -41,7 +41,13 @@ def create_splits(data_path, save_path):
         gt = x[6:]
         if "Test" in x[1]:
             continue
-        split2files[split].append(np.hstack([filename, speaker, gt]))
+        for emo, score in zip(heads[-10:], gt):
+            if float(score) == 1.0:
+                type_ = emo
+                break
+        else:
+            raise RuntimeError(f'{filename} has no emotion with score == 1.0, {gt}')
+        split2files[split].append(np.hstack([filename, speaker, type_, gt]))
 
     # Writing csv files
     for split, data in split2files.items():

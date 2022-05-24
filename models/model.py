@@ -4,23 +4,85 @@ import utils
 import hydra
 import math
 from os.path import join
-from utils import grad_reverse
+from utils import grad_reverse, sf_argmax
 
 class BaselineModel(nn.Module):
     def __init__(self, feat_dim):
         super().__init__()
-        #self.inorm = nn.InstanceNorm1d(feat_dim)
-        self.model = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
-        self.a = nn.Linear(feat_dim, 1, bias=False)
+        self.model = nn.Sequential(
+                        nn.BatchNorm1d(feat_dim),
+                        nn.Linear(feat_dim, 1024),
+                        nn.BatchNorm1d(1024),
+                        nn.LeakyReLU(),
+                        nn.Linear(1024, 512),
+                        nn.BatchNorm1d(512),
+                        nn.LeakyReLU(),
+                        nn.Linear(512, 256),
+                        nn.BatchNorm1d(256),
+                        nn.LeakyReLU(),
+                        nn.Linear(256, 64),
+                        nn.BatchNorm1d(64),
+                        nn.LeakyReLU(),
+                        nn.Linear(64, 10),
+                        nn.Sigmoid()
+                    )
+    def forward(self, feat, batch):
+        pred = self.model(feat)
+        return dict(pred_final=pred)
 
-    def forward(self, feat, gt=None):
+class CoarseModel(nn.Module):
+    def __init__(self, feat_dim):
+        super().__init__()
+        #self.inorm = nn.InstanceNorm1d(feat_dim)
+        self.model = nn.Sequential(nn.Linear(feat_dim*2, 10), nn.Sigmoid())
+        self.a = nn.Linear(feat_dim, 1, bias=False)
+        self.main_prediction = nn.Sequential(nn.Linear(feat_dim, 10))
+        self.main_embedding = nn.Embedding(10, feat_dim)
+
+    def forward(self, feat, batch):
         # feat: [#B, #seqlen, #feat_dim]
         #out = self.inorm(feat.unsqueeze(1)).squeeze(1)
         #out = feat - out
         weight = torch.softmax(self.a(feat), 1)
         feat = torch.sum(weight * feat, dim=1)
+        main_emotion = self.main_prediction(feat)
+        
+        #if batch.get('main_emotion') is not None:
+         #   main_emb = self.main_embedding(batch['main_emotion'])
+        #else:
+        dist = torch.softmax(main_emotion, dim=-1)
+        main_emb = torch.sum(self.main_embedding.weight.unsqueeze(0) * dist.unsqueeze(-1), dim=1)
+        feat = torch.cat([feat, main_emb], dim=-1)
         out = self.model(feat)
-        return dict(pred_final=out)
+        return dict(pred_final=out, main_emotion=main_emotion)
+
+class PoolingModel(nn.Module):
+    def __init__(self, feat_dim):
+        super().__init__()
+        self.model = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
+        self.a = nn.Linear(feat_dim, 1, bias=False)
+
+    def forward(self, feat, batch):
+        weight = torch.softmax(self.a(feat), 1)
+        feat = torch.sum(weight * feat, dim=1)
+        score = self.model(feat)
+        return dict(pred_final=score)
+
+class StackModel(nn.Module):
+    def __init__(self, feat_dim):
+        super().__init__()
+        self.layer1 = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
+        self.layer2 = nn.Sequential(nn.Linear(feat_dim+10, 10), nn.Sigmoid())
+        self.a = nn.Linear(feat_dim, 1, bias=False)
+
+    def forward(self, feat, batch):
+        # feat: [#B, #seqlen, #feat_dim]
+        weight = torch.softmax(self.a(feat), 1)
+        feat = torch.sum(weight * feat, dim=1)
+        prescore = self.layer1(feat)
+        feat = torch.cat([feat, prescore], dim=-1)
+        score = self.layer2(feat)
+        return {'pred_1': prescore, 'pred_final': score}
 
 class RNNCCModel(nn.Module):
     def __init__(self, feat_dim):
@@ -40,12 +102,12 @@ class RNNCCModel(nn.Module):
         p = (k + 1) / (k + math.exp(self.epoch / k))
         return p
     
-    def forward(self, feat, gt=None):
+    def forward(self, feat, batch):
         '''
             Args:
                 feat: [B, seqlen, feat_dim]
-                gt: [B, C]
         '''
+        gt = batch.get('emotion')
         weight = torch.softmax(self.a(feat), dim=1)
         feat = torch.sum(weight * feat, dim=1) # [B, feat_dim]
         hidden_state = None
@@ -85,8 +147,9 @@ class ChainModel(nn.Module):
         p = (k + 1) / (k + math.exp(self.epoch / k))
         return p
 
-    def forward(self, feat, gt=None):
+    def forward(self, feat, batch):
         # feat: [B, seqlen, feat_dim]
+        gt = batch.get('emotion')
         weight = torch.softmax(self.a(feat), dim=1)
         feat = torch.sum(weight * feat, dim=1) # [B, feat_dim]
         out_buf = []
@@ -95,11 +158,14 @@ class ChainModel(nn.Module):
             if gt is None:
                 feat = torch.cat([feat, score], dim=-1)
             else:
+                '''
                 # scheduled sampling for training
                 p = torch.rand(feat.shape[0], dtype=feat.dtype, device=feat.device).unsqueeze(-1)
                 threshold = self.get_prob()
                 next_input = torch.where(p >= threshold, score, gt[:, i:i+1].type_as(score))
                 feat = torch.cat([feat, next_input], dim=-1).type_as(feat)
+                '''
+                feat = torch.cat([feat, gt[:, i:i+1]], dim=-1).type_as(feat)
             out_buf.append(score)
         out = torch.cat(out_buf, -1)
         return {'pred_final': out}
@@ -129,6 +195,13 @@ def prepare_mask(length, shape, dtype, device):
     ] = 1
     mask = mask.flip([-1]).cumsum(-1).flip([-1]).bool()
     return mask
+
+class EmptyModule(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, x, *args, **kwargs):
+        return x
 
 class Wav2vecWrapper(nn.Module):
     def __init__(self, cfg):

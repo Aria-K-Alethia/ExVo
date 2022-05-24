@@ -6,10 +6,11 @@ import torch.optim as optim
 import pytorch_lightning as pl
 import utils
 import random
+import hydra
 from functools import partial
 from metric import CCC
 from itertools import chain
-from models.model import BaselineModel, DAModel, Wav2vecWrapper, RNNCCModel, ChainModel
+from models.model import BaselineModel, PoolingModel, Wav2vecWrapper, EmptyModule, RNNCCModel, ChainModel, StackModel
 from models.loss import BaselineLoss, DALoss, ContrastiveLoss, ClippedL1Loss
 from utils import linear_lr_with_warmup 
 
@@ -19,44 +20,22 @@ class BaselineLightningModule(pl.LightningModule):
         self.cfg = cfg
         self.lr = cfg.train.lr
         self.construct_model()
-        self.criterion = BaselineLoss()
+        self.criterion = BaselineLoss(cfg)
 
     def construct_model(self):
-        feat_dim = self.cfg.model.feat_dim
-        self.feature_extractor = Wav2vecWrapper(self.cfg)
-        '''
-        self.model = nn.Sequential(
-                        nn.BatchNorm1d(feat_dim),
-                        nn.Linear(feat_dim, 512),
-                        nn.BatchNorm1d(512),
-                        nn.LeakyReLU(),
-                        nn.Linear(512, 256),
-                        nn.BatchNorm1d(256),
-                        nn.LeakyReLU(),
-                        nn.Linear(256, 64),
-                        nn.BatchNorm1d(64),
-                        nn.LeakyReLU(),
-                        nn.Linear(64, 10),
-                        nn.Sigmoid()
-                    )
-        '''
-        #self.model = BaselineModel(feat_dim)
-        self.model = RNNCCModel(feat_dim)
+        self.feature_extractor = hydra.utils.instantiate(self.cfg.model.feature_extractor, self.cfg) 
+        self.model = hydra.utils.instantiate(self.cfg.model.model)
         print(self.model)
     
-    def forward(self, inputs, gt=None):
+    def forward(self, batch):
+        inputs = batch[self.cfg.model.feature]
         feat = self.extract_feature(inputs)
-        #var = feat['x'].var(1)
-        #feat = torch.cat([mean, var], 1)
-        outputs = self.model(feat, gt=gt)
+        outputs = self.model(feat, batch)
         return outputs
         
     def extract_feature(self, inputs):
         # inputs: [#B, #seq_len]
         out = self.feature_extractor(inputs)
-        #mean = out.mean(1)
-        #std = out.std(1, unbiased=False)
-        #out = torch.cat([mean, std], dim=-1)
         return out
 
     def training_epoch_end(self, outputs):
@@ -64,28 +43,24 @@ class BaselineLightningModule(pl.LightningModule):
             self.model.set_epoch(self.current_epoch+1)
 
     def training_step(self, batch, batch_idx):
-        feats = batch['wav']
-        gt_emotion = batch['emotion']
-        pred_emotion = self(feats, gt=gt_emotion)
+        pred_emotion = self(batch)
         
-        loss_dict = self.criterion(pred_emotion, gt_emotion)
+        loss_dict = self.criterion(pred_emotion, batch)
         loss = loss_dict['loss']
         
         #self.log("train_con_loss", con_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=feats.shape[0])
         #self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=feats.shape[0])
-        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=feats.shape[0])
+        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=self.cfg.dataset.train.batch_size)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        feats = batch['wav']
-        gt_emotion = batch['emotion']
-        pred_emotion = self(feats)
-        
-        loss_dict = self.criterion(pred_emotion, gt_emotion)
+        # we don't need main emotion in validation forward
+        pred_emotion = self(batch)
+        loss_dict = self.criterion(pred_emotion, batch)
     
         # collect results and metrics
-        out = {'gt_emotion': gt_emotion.detach().cpu(), 'pred_emotion': pred_emotion['pred_final'].detach().cpu()}
+        out = {'gt_emotion': batch['emotion'].detach().cpu(), 'pred_emotion': pred_emotion['pred_final'].detach().cpu()}
         out.update({k: v.detach().cpu() for k, v in loss_dict.items()})
 
         return out
@@ -215,7 +190,7 @@ class DALightningModule(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam([
                     {'params':chain(self.model.parameters(), self.criterion.parameters()), 'lr': self.cfg.train.lr},
-                    {'params': self.feature_extractor.parameters(), 'lr': 1e-5}])
+                    {'params': self.feature_extractor.parameters(), 'lr': self.cfg.train.lr_ft}])
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, min_lr=1e-6, verbose=True)
         scheduler_config = {'scheduler': scheduler, 'interval': 'epoch', 'frequency': 1, 'monitor': 'val_ccc'}
         return {'optimizer': optimizer, 'lr_scheduler': scheduler_config}

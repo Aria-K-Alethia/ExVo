@@ -2,6 +2,9 @@ defaults:
     - dataset: default
     - model: default
     - train: default
-log_dir: pl_log
+log_dir: train_log/
+nfold: 5 
 hydra:
+    run:
+        dir: hydra_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
     output_subdir: hydra
