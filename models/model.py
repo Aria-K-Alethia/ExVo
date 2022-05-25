@@ -131,7 +131,7 @@ class RNNCCModel(nn.Module):
                 next_input = torch.where(p >= threshold, score, gt[:, i:i+1].type_as(score))
                 input_feat = torch.cat([feat, next_input], dim=-1).type_as(feat).unsqueeze(1)
             elif gt is not None and self.cfg.model.chain_strategy == 'gt':
-                input_feat = torch.cat([feat, gt[:, i:i+1].type_as(feat)], dim=-1).unsqueeze(-1)
+                input_feat = torch.cat([feat, gt[:, i:i+1].type_as(feat)], dim=-1).unsqueeze(1)
             out_buf.append(score)
         out = torch.cat(out_buf, -1)
         return {'pred_final': out}

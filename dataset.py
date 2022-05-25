@@ -118,7 +118,9 @@ class ExvoDataset(Dataset):
 
     def get_emotion_label_order(self):
         mode = self.cfg.dataset.emotion_label_order
+        # high performance to low
         h2l_order = ["Awe", "Surprise", "Amusement", "Fear", "Horror", "Sadness", "Distress", "Excitement", "Triumph", "Awkwardness"]
+        # frquent to rare
         f2r_order = ["Amusement", "Surprise", "Fear", "Sadness", "Distress", "Excitement", "Awe", "Horror", "Awkwardness", "Triumph"]
 
         if mode == 'default':

@@ -55,10 +55,12 @@ class BaselineLightningModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # we don't need main emotion in validation forward
+        # we don't need main emotion and emotion in validation forward
+        gt_emotion = batch.pop('emotion')
         pred_emotion = self(batch)
+        batch['emotion'] = gt_emotion
         loss_dict = self.criterion(pred_emotion, batch)
-    
+
         # collect results and metrics
         out = {'gt_emotion': batch['emotion'].detach().cpu(), 'pred_emotion': pred_emotion['pred_final'].detach().cpu()}
         out.update({k: v.detach().cpu() for k, v in loss_dict.items()})

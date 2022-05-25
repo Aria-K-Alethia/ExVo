@@ -6,7 +6,7 @@ max_wav_length: 3.5
 features: ['compare']
 sr: 16000
 utterance_per_speaker: 4 #currently only used for DA training
-emotion_label_order: h2l  #default, f2r, r2f, h2l, l2h
+emotion_label_order: r2f  #default, f2r, r2f, h2l, l2h
 dataset:
     _target_: dataset.ExvoDataset 
 train:
