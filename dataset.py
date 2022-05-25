@@ -88,18 +88,6 @@ class ExvoDataset(Dataset):
         "Surprise",
     ]
     emotion2index = {e: i for i, e in enumerate(emotion_labels)}
-    decreasing_label_order = [
-        "Awe",
-        "Surprise",
-        "Amusement",
-        "Fear",
-        "Horror",
-        "Sadness",
-        "Distress",
-        "Excitement",
-        "Triumph",
-        "Awkwardness"
-    ]
 
     all_features = ['compare', 'deepspectrum', 'egemaps', 'openxbow']
 
@@ -116,6 +104,8 @@ class ExvoDataset(Dataset):
 
         self.features = cfg.dataset.features
         self.csv = self.read_csv(self.csv_path)
+        
+        self.emotion_label_order = self.get_emotion_label_order()
 
         chain = augment.EffectChain()
         #chain.pitch(partial(random_pitch_shift, a=-500, b=500)).rate(16000)
@@ -125,6 +115,25 @@ class ExvoDataset(Dataset):
     def read_csv(self, csv_path):
         df = pd.read_csv(csv_path)
         return df
+
+    def get_emotion_label_order(self):
+        mode = self.cfg.dataset.emotion_label_order
+        h2l_order = ["Awe", "Surprise", "Amusement", "Fear", "Horror", "Sadness", "Distress", "Excitement", "Triumph", "Awkwardness"]
+        f2r_order = ["Amusement", "Surprise", "Fear", "Sadness", "Distress", "Excitement", "Awe", "Horror", "Awkwardness", "Triumph"]
+
+        if mode == 'default':
+            out = self.emotion_labels # default order used by the data
+        elif mode == 'h2l':
+            out = h2l_order
+        elif mode == 'l2h':
+            out = list(reversed(h2l_order))
+        elif mode == 'f2r':
+            out = f2r_order
+        elif mode == 'r2f':
+            out = list(reversed(f2r_order))
+        else:
+            raise ValueError(f"Unknown emotion label order mode: {mode}")
+        return out
         
     def __len__(self):
         return len(self.csv)
@@ -136,7 +145,7 @@ class ExvoDataset(Dataset):
         out['fid'] = fid
         speaker = int(self.csv.loc[index, 'speaker'].split('_')[-1])
         main_emotion = self.emotion2index[self.csv.loc[index, 'type']]
-        emotion = self.csv.loc[index, self.emotion_labels].to_numpy().astype('float')
+        emotion = self.csv.loc[index, self.emotion_label_order].to_numpy().astype('float')
 
         if self.wav:
             wav = self.load_wav(fid)

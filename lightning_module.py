@@ -23,8 +23,8 @@ class BaselineLightningModule(pl.LightningModule):
         self.criterion = BaselineLoss(cfg)
 
     def construct_model(self):
-        self.feature_extractor = hydra.utils.instantiate(self.cfg.model.feature_extractor, self.cfg) 
-        self.model = hydra.utils.instantiate(self.cfg.model.model)
+        self.feature_extractor = hydra.utils.instantiate(self.cfg.model.feature_extractor, cfg=self.cfg, _recursive_=False) 
+        self.model = hydra.utils.instantiate(self.cfg.model.model, cfg=self.cfg, _recursive_=False)
         print(self.model)
     
     def forward(self, batch):
@@ -79,7 +79,7 @@ class BaselineLightningModule(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam([
                     {'params':self.model.parameters(), 'lr': self.cfg.train.lr},
-                    {'params': self.feature_extractor.parameters(), 'lr': 1e-5}])
+                    {'params': self.feature_extractor.parameters(), 'lr': self.cfg.train.lr_ft}])
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, min_lr=1e-6, verbose=True)
         scheduler_config = {'scheduler': scheduler, 'interval': 'epoch', 'frequency': 1, 'monitor': 'val_ccc'}
         #warmup_lambda = partial(linear_lr_with_warmup, warmup_steps=2400, flat_steps=4800, training_steps=30000)

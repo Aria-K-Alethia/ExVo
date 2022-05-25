@@ -7,8 +7,9 @@ from os.path import join
 from utils import grad_reverse, sf_argmax
 
 class BaselineModel(nn.Module):
-    def __init__(self, feat_dim):
+    def __init__(self, feat_dim, cfg):
         super().__init__()
+        self.cfg = cfg
         self.model = nn.Sequential(
                         nn.BatchNorm1d(feat_dim),
                         nn.Linear(feat_dim, 1024),
@@ -31,8 +32,9 @@ class BaselineModel(nn.Module):
         return dict(pred_final=pred)
 
 class CoarseModel(nn.Module):
-    def __init__(self, feat_dim):
+    def __init__(self, feat_dim, cfg):
         super().__init__()
+        self.cfg = cfg
         #self.inorm = nn.InstanceNorm1d(feat_dim)
         self.model = nn.Sequential(nn.Linear(feat_dim*2, 10), nn.Sigmoid())
         self.a = nn.Linear(feat_dim, 1, bias=False)
@@ -57,20 +59,24 @@ class CoarseModel(nn.Module):
         return dict(pred_final=out, main_emotion=main_emotion)
 
 class PoolingModel(nn.Module):
-    def __init__(self, feat_dim):
+    def __init__(self, feat_dim, cfg):
         super().__init__()
+        self.cfg = cfg
         self.model = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
         self.a = nn.Linear(feat_dim, 1, bias=False)
+        #self.dropout = nn.Dropout(0.5)
 
     def forward(self, feat, batch):
         weight = torch.softmax(self.a(feat), 1)
         feat = torch.sum(weight * feat, dim=1)
+        #feat = self.dropout(feat)
         score = self.model(feat)
         return dict(pred_final=score)
 
 class StackModel(nn.Module):
-    def __init__(self, feat_dim):
+    def __init__(self, feat_dim, cfg):
         super().__init__()
+        self.cfg = cfg
         self.layer1 = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
         self.layer2 = nn.Sequential(nn.Linear(feat_dim+10, 10), nn.Sigmoid())
         self.a = nn.Linear(feat_dim, 1, bias=False)
@@ -85,8 +91,9 @@ class StackModel(nn.Module):
         return {'pred_1': prescore, 'pred_final': score}
 
 class RNNCCModel(nn.Module):
-    def __init__(self, feat_dim):
+    def __init__(self, feat_dim, cfg):
         super().__init__()
+        self.cfg = cfg
         self.c = 10
         self.a = nn.Linear(feat_dim, 1, bias=False)
         self.zero_score = nn.Parameter(torch.zeros(1).unsqueeze(-1), requires_grad=False)
@@ -98,7 +105,7 @@ class RNNCCModel(nn.Module):
         self.epoch = epoch
 
     def get_prob(self):
-        k = 2
+        k = 1
         p = (k + 1) / (k + math.exp(self.epoch / k))
         return p
     
@@ -116,20 +123,23 @@ class RNNCCModel(nn.Module):
         for i in range(self.c):
             out_state, hidden_state = self.gru(input_feat, hidden_state)
             score = self.out_layer(out_state.squeeze(1)) # [B, 1]
-            if gt is None:
+            if gt is None or self.cfg.model.chain_strategy == 'pred':
                 input_feat = torch.cat([feat, score], dim=-1).unsqueeze(1)
-            else: # scheduled sampling for training
+            elif gt is not None and self.cfg.model.chain_strategy == 'ss':
                 p = torch.rand(feat.shape[0], dtype=feat.dtype, device=feat.device).unsqueeze(-1)
                 threshold = self.get_prob()
                 next_input = torch.where(p >= threshold, score, gt[:, i:i+1].type_as(score))
                 input_feat = torch.cat([feat, next_input], dim=-1).type_as(feat).unsqueeze(1)
+            elif gt is not None and self.cfg.model.chain_strategy == 'gt':
+                input_feat = torch.cat([feat, gt[:, i:i+1].type_as(feat)], dim=-1).unsqueeze(-1)
             out_buf.append(score)
         out = torch.cat(out_buf, -1)
         return {'pred_final': out}
        
 class ChainModel(nn.Module):
-    def __init__(self, feat_dim):
+    def __init__(self, feat_dim, cfg):
         super().__init__()
+        self.cfg = cfg
         self.c = 10
         self.a = nn.Linear(feat_dim, 1, bias=False)
         self.chain = nn.ModuleList()
@@ -143,7 +153,7 @@ class ChainModel(nn.Module):
         self.epoch = epoch
 
     def get_prob(self):
-        k = 2
+        k = 1
         p = (k + 1) / (k + math.exp(self.epoch / k))
         return p
 
@@ -155,17 +165,15 @@ class ChainModel(nn.Module):
         out_buf = []
         for i in range(self.c):
             score = self.sigmoid(self.chain[i](feat))
-            if gt is None:
+            if gt is None or self.cfg.model.chain_strategy == 'pred':
                 feat = torch.cat([feat, score], dim=-1)
-            else:
-                '''
-                # scheduled sampling for training
+            elif gt is not None and self.cfg.model.chain_strategy == 'ss':
                 p = torch.rand(feat.shape[0], dtype=feat.dtype, device=feat.device).unsqueeze(-1)
                 threshold = self.get_prob()
                 next_input = torch.where(p >= threshold, score, gt[:, i:i+1].type_as(score))
                 feat = torch.cat([feat, next_input], dim=-1).type_as(feat)
-                '''
-                feat = torch.cat([feat, gt[:, i:i+1]], dim=-1).type_as(feat)
+            elif gt is not None and self.cfg.model.chain_strategy == 'gt':
+                feat = torch.cat([feat, gt[:, i:i+1].type_as(feat)], dim=-1).type_as(feat)
             out_buf.append(score)
         out = torch.cat(out_buf, -1)
         return {'pred_final': out}
