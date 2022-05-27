@@ -107,10 +107,11 @@ class ExvoDataset(Dataset):
         
         self.emotion_label_order = self.get_emotion_label_order()
 
-        chain = augment.EffectChain()
-        #chain.pitch(partial(random_pitch_shift, a=-500, b=500)).rate(16000)
-        #chain.tempo(partial(random_time_warp, f=2))
-        #self.chain = ChainRunner(chain)
+        if cfg.dataset.augment.enable:
+            chain = augment.EffectChain()
+            chain.pitch(partial(random_pitch_shift, a=0 - cfg.dataset.augment.pitch, b=cfg.dataset.augment.pitch)).rate(16000)
+            chain.tempo(partial(random_time_warp, f=cfg.dataset.augment.rate))
+            self.chain = ChainRunner(chain)
 
     def read_csv(self, csv_path):
         df = pd.read_csv(csv_path)
@@ -195,9 +196,9 @@ class ExvoDataset(Dataset):
         if wav.shape[0] > 1:
             wav = wav[:1,:]
         assert sr == self.sr
-        #if self.phase == 'train':
-            #wav = self.chain(wav)
-
+        if self.phase == 'train' and self.cfg.dataset.augment.enable:
+            wav = self.chain(wav)
+        
         max_length = int(self.cfg.dataset.max_wav_length * sr)
         
         # copy

@@ -1,7 +1,7 @@
 feature_extractor:
     _target_: models.model.Wav2vecWrapper
 model:
-    _target_: models.model.ChainModel
+    _target_: models.model.PoolingModel
     feat_dim: 768 #6373
 feature: wav
 ssl_model: facebook/wav2vec2-base #facebook/hubert-large-ll60k #facebook/wav2vec2-large-xlsr-53 #facebook/wav2vec2-large-robust

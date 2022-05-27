@@ -35,8 +35,9 @@ class BaselineLightningModule(pl.LightningModule):
         
     def extract_feature(self, inputs):
         # inputs: [#B, #seq_len]
-        out = self.feature_extractor(inputs)
-        return out
+        feat = self.feature_extractor(inputs)
+
+        return feat
 
     def training_epoch_end(self, outputs):
         if hasattr(self.model, 'set_epoch'):

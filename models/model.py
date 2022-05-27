@@ -64,14 +64,25 @@ class PoolingModel(nn.Module):
         self.cfg = cfg
         self.model = nn.Sequential(nn.Linear(feat_dim, 10), nn.Sigmoid())
         self.a = nn.Linear(feat_dim, 1, bias=False)
+        #self.a2 = nn.Linear(feat_dim, 1, bias=False)
         #self.dropout = nn.Dropout(0.5)
-
     def forward(self, feat, batch):
+        # feat: [B, L, F]
         weight = torch.softmax(self.a(feat), 1)
         feat = torch.sum(weight * feat, dim=1)
         #feat = self.dropout(feat)
         score = self.model(feat)
         return dict(pred_final=score)
+    '''
+    def forward(self, feat, batch):
+        # feat: [layer, B, L, F]
+        weight1 = torch.softmax(self.a(feat), dim=2)
+        feat = torch.sum(weight1 * feat, dim=2).transpose(0, 1) #[B, layer, F]
+        weight2 = torch.softmax(self.a2(feat), dim=1)
+        feat = torch.sum(weight2 * feat, dim=1)
+        score = self.model(feat)
+        return dict(pred_final=score)
+    ''' 
 
 class StackModel(nn.Module):
     def __init__(self, feat_dim, cfg):
@@ -246,6 +257,7 @@ class Wav2vecWrapper(nn.Module):
         #weight = torch.softmax(self.weight, 0)
         #feat = (feat * weight.reshape(self.num_hidden_layers, 1, 1, 1)).sum(0)
         feat = out.hidden_states[-1]
+        #feat = torch.stack(out.hidden_states[-self.num_hidden_layers:]) # [layer, B, L, F]
         return feat
 
 class Wav2vecPretrainModel(nn.Module):
