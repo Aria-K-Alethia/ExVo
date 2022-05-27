@@ -20,25 +20,27 @@ def cross_validation(cfg):
     n_fold = cfg.nfold
     best_scores = []
     best_ckpt_paths = []
-    parent_dir = cfg.train.log_dir
+    parent_dir = cfg.log_dir
     for i in range(n_fold):
         save_dir = join(parent_dir, f'split_{i}')
         cfg.dataset.train.csv_path = f'filelists/train_split_{i}.csv'
         cfg.dataset.val.csv_path = f'filelists/val_split_{i}.csv'
         best_score, best_ckpt_path = train(cfg, i, save_dir)
-        best_scores.append(best_score)
+        best_scores.append(best_score.item())
         best_ckpt_paths.append(best_ckpt_path)
-   best_scores = np.array(best_scores)
-   print(f'CV ends, avg best score: {best_scores.mean()} + {best_scores.std()}')
-   score_path = join(parent_dir, 'best_scores.pt')
-   print(f'Save best scores to {score_path}')
-   torch.save(best_scores, score_path)
-   ckpt_path = join(parent_dir, 'best_ckpt_paths.pt')
-   print(f'Save best ckpt paths to {ckpt_path}')
-   torch.save(best_ckpt_paths, ckpt_path)
+    best_scores = np.array(best_scores)
+    print(best_scores)
+    print(f'CV ends, avg best score: {best_scores.mean()} + {best_scores.std()}')
+    score_path = join(parent_dir, 'best_scores.pt')
+    print(f'Save best scores to {score_path}')
+    torch.save(best_scores, score_path)
+    ckpt_path = join(parent_dir, 'best_ckpt_paths.pt')
+    print(f'Save best ckpt paths to {ckpt_path}')
+    torch.save(best_ckpt_paths, ckpt_path)
     
     
 def train(cfg, i_cv, save_dir):
+    print(f'Train loop for {i_cv}th fold')
     # loggers
     csvlogger = CSVLogger(save_dir=save_dir, name='csv')
     tblogger = TensorBoardLogger(save_dir=save_dir, name='tb')

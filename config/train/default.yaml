@@ -2,8 +2,10 @@ trainer:
     gpus: 1
     min_epochs: 10
     max_epochs: 50
-    #min_steps: 10000
-    #max_steps: 30000
+    #min_steps: 10
+    #max_steps: 10
+    #limit_train_batches: 0.01
+    #limit_val_batches: 0.01
     precision: 16
     accumulate_grad_batches: 1
     gradient_clip_val: 1

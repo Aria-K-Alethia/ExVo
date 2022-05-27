@@ -198,7 +198,7 @@ class ExvoDataset(Dataset):
         assert sr == self.sr
         if self.phase == 'train' and self.cfg.dataset.augment.enable:
             wav = self.chain(wav)
-        
+
         max_length = int(self.cfg.dataset.max_wav_length * sr)
         
         # copy

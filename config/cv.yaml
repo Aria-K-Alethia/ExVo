@@ -2,9 +2,9 @@ defaults:
     - dataset: default
     - model: default
     - train: default
-log_dir: train_log/
+log_dir: /scratch/acc12076sp/test
 nfold: 5 
 hydra:
     run:
-        dir: hydra_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+        dir: /scratch/acc12076sp/test/hydra_outputs/${now:%Y-%m-%d-%H-%M-%S}
     output_subdir: hydra
