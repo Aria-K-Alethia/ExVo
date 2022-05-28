@@ -147,7 +147,12 @@ class ExvoDataset(Dataset):
         fid = wav_id[:-4]
         out['fid'] = fid
         speaker = int(self.csv.loc[index, 'speaker'].split('_')[-1])
-        main_emotion = self.emotion2index[self.csv.loc[index, 'type']]
+        main_emotion = self.csv.loc[index, 'type']
+        if type(main_emotion) == str:
+            main_emotion = self.emotion2index[main_emotion]
+        else:
+            main_emotion = -1
+            
         emotion = self.csv.loc[index, self.emotion_label_order].to_numpy().astype('float')
 
         if self.wav:
@@ -171,6 +176,8 @@ class ExvoDataset(Dataset):
         fids = [b['fid'] for b in batch]
         speaker = torch.stack([b['speaker'] for b in batch]).squeeze()
         emotion = torch.stack([b['emotion'] for b in batch])
+        if emotion.isnan().any():
+            emotion = None
         main_emotion = torch.stack([b['main_emotion'] for b in batch]).squeeze()
 
         feat_names = list(batch[0]['features'].keys())

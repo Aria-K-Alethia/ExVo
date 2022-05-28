@@ -23,5 +23,5 @@ val:
     shuffle: false
 test:
     csv_path: filelists/exvo_val.csv
-    batch_size: 16
+    batch_size: 1
     shuffle: false

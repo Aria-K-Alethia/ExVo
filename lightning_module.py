@@ -71,7 +71,7 @@ class BaselineLightningModule(pl.LightningModule):
         return out
     
     def test_step(self, batch, batch_idx):
-        if 'emotion' in batch:
+        if batch['emotion'] is not None:
             gt_emotion = batch.pop('emotion').detach().cpu()
         else:
             gt_emotion = None

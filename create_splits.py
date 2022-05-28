@@ -90,7 +90,7 @@ def create_test_splits(data_path, save_dir):
     
     out = []
     for i, row in df.iterrows():
-        id_ = row.File_ID[1:-1]
+        id_ = row.File_ID[1:-1] + '.wav'
         speaker = row.Subject_ID
         item = [id_, speaker, np.nan] + [np.nan] * 10
         out.append(item)
@@ -101,7 +101,7 @@ def create_test_splits(data_path, save_dir):
     # ft
     out = []
     for i, row in ft.iterrows():
-        id_ = row.File_ID[1:-1]
+        id_ = row.File_ID[1:-1] + '.wav'
         speaker = row.Subject_ID
         type_ = None
         emo_buf = []
