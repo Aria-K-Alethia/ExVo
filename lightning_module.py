@@ -7,12 +7,14 @@ import pytorch_lightning as pl
 import utils
 import random
 import hydra
+import pandas as pd
 from functools import partial
 from metric import CCC
 from itertools import chain
 from models.model import BaselineModel, PoolingModel, Wav2vecWrapper, EmptyModule, RNNCCModel, ChainModel, StackModel
 from models.loss import BaselineLoss, DALoss, ContrastiveLoss, ClippedL1Loss
 from utils import linear_lr_with_warmup 
+from dataset import ExvoDataset
 
 class BaselineLightningModule(pl.LightningModule):
     def __init__(self, cfg):
@@ -67,6 +69,16 @@ class BaselineLightningModule(pl.LightningModule):
         out.update({k: v.detach().cpu() for k, v in loss_dict.items()})
 
         return out
+    
+    def test_step(self, batch, batch_idx):
+        if 'emotion' in batch:
+            gt_emotion = batch.pop('emotion').detach().cpu()
+        else:
+            gt_emotion = None
+        pred_emotion = self(batch)
+        out = {'fids': batch['fids'], 'label_order': batch['label_order'], 'gt_emotion': gt_emotion, 'pred_emotion': pred_emotion['pred_final'].detach().cpu()}
+        
+        return out
 
     def validation_epoch_end(self, outputs):
         #val_con_loss = torch.stack([out['con_loss'] for out in outputs]).mean().item()
@@ -79,12 +91,47 @@ class BaselineLightningModule(pl.LightningModule):
         #self.log('val_con_loss', val_con_loss, on_epoch=True, prog_bar=True, logger=True)
         self.log('val_ccc', ccc, on_epoch=True, prog_bar=True, logger=True)
 
+    def test_epoch_end(self, outputs):
+        pred_emotion = torch.cat([out['pred_emotion'] for out in outputs], 0)
+        fids = [fid for batch in outputs for fid in batch['fids']]
+        # recover label order to default order
+        label_order = outputs[0]['label_order']
+        default_order = ExvoDataset.emotion_labels
+        indices = []
+        for label in default_order:
+            indices.append(label_order.index(label))
+        pred_emotion = pred_emotion[:, indices]
+        # gt emotion
+        if outputs[0]['gt_emotion'] is not None:
+            gt_emotion = torch.cat([out['gt_emotion'] for out in outputs], 0)
+            gt_emotion = gt_emotion[:, indices]
+            ccc, ccc_single = CCC(pred_emotion, gt_emotion, output_single=True)
+            print(ccc, ccc_single)
+            self.log('test_ccc', ccc)
+            #self.log('test_ccc_single', ccc_single, reduce_fx=lambda x: x)
+        else:
+            gt_emotion = None
+        if gt_emotion is None: # this is a dirty design
+            out_path = self.cfg.test_out_file 
+        else:
+            out_path = self.cfg.val_out_file
+        out = []
+        for fid, emotion in zip(fids, pred_emotion):
+            temp = []
+            fid = f'[{fid}]'
+            temp.append(fid)
+            temp.extend(emotion.tolist())
+            out.append(temp)
+        heads = ['File_ID'] + default_order
+        out_df = pd.DataFrame(out, columns=heads)
+        out_df.to_csv(out_path, index=False)
+
     def configure_optimizers(self):
         optimizer = optim.Adam([
                     {'params':self.model.parameters(), 'lr': self.cfg.train.lr},
                     {'params': self.feature_extractor.parameters(), 'lr': self.cfg.train.lr_ft}])
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, min_lr=1e-6, verbose=True)
-        scheduler_config = {'scheduler': scheduler, 'interval': 'epoch', 'frequency': 1, 'monitor': 'val_ccc'}
+        scheduler = hydra.utils.instantiate(self.cfg.train.scheduler, optimizer)
+        scheduler_config = {'scheduler': scheduler, 'interval': self.cfg.train.schedule_interval, 'frequency': 1, 'monitor': 'val_ccc'}
         #warmup_lambda = partial(linear_lr_with_warmup, warmup_steps=2400, flat_steps=4800, training_steps=30000)
         #scheduler = optim.lr_scheduler.LambdaLR(optimizer, warmup_lambda, verbose=False)
         #scheduler_config = {'scheduler': scheduler, 'interval': 'step', 'frequency': 1}

@@ -10,5 +10,13 @@ trainer:
     accumulate_grad_batches: 1
     gradient_clip_val: 1
     auto_lr_find: false
+scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    mode: max
+    factor: 0.5
+    patience: 1
+    min_lr: 1e-6
+    verbose: True
+schedule_interval: epoch
 lr: 1e-4
 lr_ft: 1e-5

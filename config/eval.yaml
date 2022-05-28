@@ -1,0 +1,12 @@
+defaults:
+    - dataset: eval
+    - model: default
+    - train: eval
+log_dir: /scratch/acc12076sp/ssl/temp
+nfold: 5
+val_out_file: val_ft.csv
+test_out_file: test_ft.csv
+hydra:
+    run:
+        dir: /scratch/acc12076sp/ssl/temp/hydra_outputs/${now:%Y-%m-%d-%H-%M-%S}
+    output_subdir: hydra

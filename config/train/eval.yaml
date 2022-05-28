@@ -1,0 +1,21 @@
+trainer:
+    gpus: 1
+    #min_epochs: 5
+    #max_epochs: 10
+    min_steps: 300
+    max_steps: 300
+    #limit_train_batches: 0.01
+    #limit_val_batches: 0.01
+    precision: 16
+    accumulate_grad_batches: 1
+    gradient_clip_val: 1
+    auto_lr_find: false
+    check_val_every_n_epoch: 5
+scheduler:
+    _target_: torch.optim.lr_scheduler.StepLR
+    step_size: 30
+    gamma: 0.9
+    verbose: false
+schedule_interval: step
+lr: 1e-5
+lr_ft: 1e-5

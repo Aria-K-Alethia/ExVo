@@ -163,6 +163,7 @@ class ExvoDataset(Dataset):
         out['speaker'] = speaker
         out['emotion'] = emotion
         out['main_emotion'] = main_emotion
+        out['label_order'] = self.emotion_label_order
         
         return out
 
@@ -173,7 +174,8 @@ class ExvoDataset(Dataset):
         main_emotion = torch.stack([b['main_emotion'] for b in batch]).squeeze()
 
         feat_names = list(batch[0]['features'].keys())
-        out = {'fids': fids, 'speaker': speaker, 'emotion': emotion, 'main_emotion': main_emotion} 
+        label_order = batch[0]['label_order']
+        out = {'fids': fids, 'speaker': speaker, 'emotion': emotion, 'main_emotion': main_emotion, 'label_order': label_order} 
         features = []
         for feat_name in feat_names:
             feat = [b['features'][feat_name] for b in batch]
@@ -241,7 +243,7 @@ class ExvoSpeakerDataset(ExvoDataset):
         self.spkr2data = {item[0]: item[1] for item in list(self.csv.groupby('speaker'))}
         self.spkrs = list(self.spkr2data)
         self.spkrs.sort()
-        self.target_speaker = None
+        self.target_speaker = self.spkrs[0]
     
     def get_speakers(self):
         return self.spkrs.copy()
@@ -258,12 +260,12 @@ class ExvoSpeakerDataset(ExvoDataset):
     def __getitem__(self, index):
         out = {}
         df = self.spkr2data[self.target_speaker]
-        wav_id = df.loc[index, 'id']
+        wav_id = df.iloc[index].id
         fid = wav_id[:-4]
         out['fid'] = fid
-        speaker = int(df.loc[index, 'speaker'].split('_')[-1])
-        main_emotion = self.emotion2index[df.loc[index, 'type']]
-        emotion = df.loc[index, self.emotion_label_order].to_numpy().astype('float')
+        speaker = int(df.iloc[index].speaker.split('_')[-1])
+        main_emotion = self.emotion2index[df.iloc[index].type]
+        emotion = df.iloc[index].loc[self.emotion_label_order].to_numpy().astype('float')
 
         if self.wav:
             wav = self.load_wav(fid)

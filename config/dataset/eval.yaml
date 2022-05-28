@@ -1,0 +1,27 @@
+wav_path: ../data/wav_trimmed
+feat_path: ../data/feats
+wav: true
+copy: true
+max_wav_length: 3.5
+features: ['egemaps']
+sr: 16000
+utterance_per_speaker: 4 #currently only used for DA training
+emotion_label_order: default  #default, f2r, r2f, h2l, l2h
+augment:
+    enable: false
+    pitch: 300
+    rate: 2
+dataset:
+    _target_: dataset.ExvoDataset 
+train:
+    csv_path: filelists/exvo_train.csv
+    batch_size: 16
+    shuffle: true
+val:
+    csv_path: filelists/exvo_val.csv
+    batch_size: 16
+    shuffle: false
+test:
+    csv_path: filelists/exvo_val.csv
+    batch_size: 16
+    shuffle: false
