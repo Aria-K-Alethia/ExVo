@@ -27,8 +27,8 @@ class DataModule(pl.LightningDataModule):
     def get_loader(self, phase):
         phase_cfg = self.cfg.dataset.get(phase)
         batch_size = phase_cfg.batch_size
-        #ds = hydra.utils.instantiate(self.cfg.dataset.dataset, phase, self.cfg)
-        ds = ExvoDataset(phase, self.cfg)
+        ds = hydra.utils.instantiate(self.cfg.dataset.dataset, phase, self.cfg)
+        #ds = ExvoDataset(phase, self.cfg)
         dl = DataLoader(ds, batch_size, phase_cfg.shuffle, num_workers=8, collate_fn=ds.collate_fn)
 
         return dl
@@ -236,79 +236,50 @@ class ExvoDataset(Dataset):
         return feat
 
 class ExvoSpeakerDataset(ExvoDataset):
-    emotion_labels = [
-        "Awe",
-        "Excitement",
-        "Amusement",
-        "Awkwardness",
-        "Fear",
-        "Horror",
-        "Distress",
-        "Triumph",
-        "Sadness",
-        "Surprise",
-    ]
-
-    all_features = ['compare', 'deepspectrum', 'egemaps', 'openxbow']
-
     def __init__(self, phase, cfg):
         super().__init__(phase, cfg)
-        self.spkr2data = [item[1] for item in list(self.csv.groupby('speaker'))]
-        
+        self.spkr2data = {item[0]: item[1] for item in list(self.csv.groupby('speaker'))}
+        self.spkrs = list(self.spkr2data)
+        self.spkrs.sort()
+        self.target_speaker = None
+    
+    def get_speakers(self):
+        return self.spkrs.copy()
+    
+    def get_target_speaker(self):
+        return self.target_speaker
+
+    def set_target_speaker(self, spkr):
+        self.target_speaker = spkr
+
     def __len__(self):
-        return 9 * len(self.spkr2data)
+        return len(self.spkr2data[self.target_speaker])
 
     def __getitem__(self, index):
-        index = index % len(self.spkr2data)
         out = {}
-        M = self.cfg.dataset.utterance_per_speaker
-        data = self.spkr2data[index].sample(M)
-        speaker = int(data.iloc[0]['speaker'].split('_')[-1])
-        speaker = [speaker] * M
-        emotion = data.loc[:, self.emotion_labels].to_numpy().astype('float')
-        fids = [wavid[:-4] for wavid in data['id']]
-        out['fid'] = fids
+        df = self.spkr2data[self.target_speaker]
+        wav_id = df.loc[index, 'id']
+        fid = wav_id[:-4]
+        out['fid'] = fid
+        speaker = int(df.loc[index, 'speaker'].split('_')[-1])
+        main_emotion = self.emotion2index[df.loc[index, 'type']]
+        emotion = df.loc[index, self.emotion_label_order].to_numpy().astype('float')
 
         if self.wav:
-            wav = []
-            for fid in fids:
-                wav.append(self.load_wav(fid))
-            wav = torch.stack(wav)
+            wav = self.load_wav(fid)
             out['wav'] = wav
-        
-        features = [self.load_features(fid) for fid in fids]
-        speaker = torch.LongTensor(speaker)
+
+        features = self.load_features(fid)
+        speaker = torch.LongTensor([speaker])
         emotion = torch.from_numpy(emotion)
-        
+        main_emotion = torch.LongTensor([main_emotion])
+
         out['features'] = features
         out['speaker'] = speaker
         out['emotion'] = emotion
+        out['main_emotion'] = main_emotion
         
         return out
-
-    def collate_fn(self, batch):
-        fids = [b['fid'] for b in batch]
-        speaker = torch.stack([b['speaker'] for b in batch]).squeeze()
-        emotion = torch.stack([b['emotion'] for b in batch]).squeeze()
-        feat_names = list(batch[0]['features'][0].keys())
-        
-        out = {'fids': fids, 'speaker': speaker, 'emotion': emotion}
-        features = []
-        for feat_name in feat_names:
-            feat = [item[feat_name] for b in batch for item in b['features']]
-            feat = torch.stack(feat)
-            feat = feat.reshape(emotion.shape[0], emotion.shape[1], feat.shape[-1])
-            features.append(feat)
-            out[feat_name] = feat
-        feature = torch.cat(features, dim=-1)
-        out['feature'] = feature
-
-        if self.cfg.dataset.wav:
-            wav = torch.stack([b['wav'] for b in batch]).squeeze(2)
-            out['wav'] = wav
-
-        return out
-
 
 if __name__ == '__main__':
     dataset = ExvoDataset('filelists/exvo_train.csv', '../data/wav', '../data/feats', ['compare'], 16000)

@@ -159,6 +159,7 @@ class ChainModel(nn.Module):
             self.chain.append(linear)
         self.sigmoid = nn.Sigmoid()
         self.epoch = 0
+        #self.dropout = nn.Dropout(0.5)
 
     def set_epoch(self, epoch):
         self.epoch = epoch
@@ -167,27 +168,58 @@ class ChainModel(nn.Module):
         k = 1
         p = (k + 1) / (k + math.exp(self.epoch / k))
         return p
-
     def forward(self, feat, batch):
         # feat: [B, seqlen, feat_dim]
         gt = batch.get('emotion')
         weight = torch.softmax(self.a(feat), dim=1)
         feat = torch.sum(weight * feat, dim=1) # [B, feat_dim]
         out_buf = []
+        input_feat = feat
         for i in range(self.c):
-            score = self.sigmoid(self.chain[i](feat))
+            score = self.sigmoid(self.chain[i](input_feat))
             if gt is None or self.cfg.model.chain_strategy == 'pred':
-                feat = torch.cat([feat, score], dim=-1)
+                input_feat = torch.cat([feat, score], dim=-1)
             elif gt is not None and self.cfg.model.chain_strategy == 'ss':
                 p = torch.rand(feat.shape[0], dtype=feat.dtype, device=feat.device).unsqueeze(-1)
                 threshold = self.get_prob()
                 next_input = torch.where(p >= threshold, score, gt[:, i:i+1].type_as(score))
-                feat = torch.cat([feat, next_input], dim=-1).type_as(feat)
+                input_feat = torch.cat([feat, next_input], dim=-1).type_as(feat)
             elif gt is not None and self.cfg.model.chain_strategy == 'gt':
-                feat = torch.cat([feat, gt[:, i:i+1].type_as(feat)], dim=-1).type_as(feat)
+                input_feat = torch.cat([feat, gt[:, i:i+1].type_as(feat)], dim=-1).type_as(feat)
             out_buf.append(score)
         out = torch.cat(out_buf, -1)
         return {'pred_final': out}
+    '''
+    def forward(self, feat, batch):
+        # feat: [B, seqlen, feat_dim]
+        gt = batch.get('emotion')
+        weight = torch.softmax(self.a(feat), dim=1)
+        feat = torch.sum(weight * feat, dim=1) # [B, feat_dim]
+        out_buf = []
+        input_feat = feat
+        prev_score = None
+        for i in range(self.c):
+            score = self.sigmoid(self.chain[i](input_feat))
+            if gt is None or self.cfg.model.chain_strategy == 'pred':
+                if prev_score is None: prev_score = score
+                else:
+                    prev_score = torch.cat([prev_score, score], dim=-1)
+            elif gt is not None and self.cfg.model.chain_strategy == 'ss':
+                p = torch.rand(feat.shape[0], dtype=feat.dtype, device=feat.device).unsqueeze(-1)
+                threshold = self.get_prob()
+                next_input = torch.where(p >= threshold, score, gt[:, i:i+1].type_as(score))
+                if prev_score is None: prev_score = next_input
+                else:
+                    prev_score = torch.cat([prev_score, next_input], dim=-1).type_as(feat)
+            elif gt is not None and self.cfg.model.chain_strategy == 'gt':
+                if prev_score is None: prev_score = gt[:, i:i+1].type_as(score)
+                else:
+                    prev_score = torch.cat([prev_score, gt[:, i:i+1].type_as(score)], dim=-1).type_as(feat)
+            out_buf.append(score)
+            input_feat = torch.cat([self.dropout(feat), prev_score], dim=-1)
+        out = torch.cat(out_buf, -1)
+        return {'pred_final': out}
+    '''
 
 class DAModel(nn.Module):
     def __init__(self, feat_dim, speaker_emb_dim=64):
