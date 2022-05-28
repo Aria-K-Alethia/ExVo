@@ -7,7 +7,9 @@
 import numpy as np
 import json
 import argparse
+import pandas as pd
 
+from os.path import join
 from pathlib import Path
 from collections import defaultdict
 
@@ -25,6 +27,11 @@ parser.add_argument(
     type=str,
     default="./",
     help="Path to save the csv/json files for training.",
+)
+parser.add_argument(
+    "--test",
+    action="store_true",
+    help="test flag, used to generate test filelist"
 )
 
 
@@ -74,7 +81,46 @@ def create_splits(data_path, save_path):
 #     json.dump(subject2files, f)
 #     f.close()
 
+def create_test_splits(data_path, save_dir):
+    df = pd.read_csv(data_path)
+    df = df[df.Split == 'Test']
+    emotion = df.columns[-10:]
+    ft = df[~df.Awe.isna()]
+    heads = ['id', 'speaker', 'type', 'Awe', 'Excitement', 'Amusement', 'Awkwardness', 'Fear', 'Horror', 'Distress', 'Triumph', 'Sadness', 'Surprise']
+    
+    out = []
+    for i, row in df.iterrows():
+        id_ = row.File_ID[1:-1]
+        speaker = row.Subject_ID
+        item = [id_, speaker, np.nan] + [np.nan] * 10
+        out.append(item)
+    out = pd.DataFrame(out, columns=heads)
+    print(f'test, {out.shape}')
+    out_path = join(save_dir, "exvo_test.csv")
+    out.to_csv(out_path, index=False)
+    # ft
+    out = []
+    for i, row in ft.iterrows():
+        id_ = row.File_ID[1:-1]
+        speaker = row.Subject_ID
+        type_ = None
+        emo_buf = []
+        for emo in emotion:
+            value = row.loc[emo]
+            if value == 1.0:
+                type_ = emo
+            emo_buf.append(value)
+        assert type_ is not None, f"{id_} has no main emotion"
+        item = [id_, speaker, type_] + emo_buf
+        out.append(item)
+    out = pd.DataFrame(out, columns=heads)
+    print(f'ft, {out.shape}')
+    out_path = join(save_dir, "exvo_ft.csv")
+    out.to_csv(out_path, index=False)
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    create_splits(Path(args.data_file_path), Path(args.save_path))
+    if not args.test:
+        create_splits(Path(args.data_file_path), Path(args.save_path))
+    else:
+        create_test_splits(args.data_file_path, args.save_path)
