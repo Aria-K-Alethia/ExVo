@@ -11,7 +11,7 @@ import pandas as pd
 from functools import partial
 from metric import CCC
 from itertools import chain
-from models.model import BaselineModel, PoolingModel, Wav2vecWrapper, EmptyModule, RNNCCModel, ChainModel, StackModel
+from models.model import BaselineModel, EgemapsModel, PoolingModel, Wav2vecWrapper, EmptyModule, RNNCCModel, ChainModel, StackModel
 from models.loss import BaselineLoss, DALoss, ContrastiveLoss, ClippedL1Loss
 from utils import linear_lr_with_warmup 
 from dataset import ExvoDataset

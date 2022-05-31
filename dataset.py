@@ -244,6 +244,22 @@ class ExvoDataset(Dataset):
         feat = torch.FloatTensor(feat)
         return feat
 
+    def get_boaw(self, fid):
+        feat_path = join(self.feat_path, 'openxbow', f'{fid}.csv')
+        with open(feat_path, 'r', encoding='utf8') as f:
+            lines = [line.strip().split(',') for line in f if line.strip()]
+        feat = [float(item) for item in lines[1][1:]]
+        feat = torch.FloatTensor(feat)
+        return feat
+
+    def get_deepspectrum(self, fid):
+        feat_path = join(self.feat_path, 'deepspectrum', f'{fid}.csv')
+        with open(feat_path, 'r', encoding='utf8') as f:
+            lines = [line.strip().split(',') for line in f if line.strip()]
+        feat = [float(item) for item in lines[1][1:]]
+        feat = torch.FloatTensor(feat)
+        return feat
+
 class ExvoSpeakerDataset(ExvoDataset):
     def __init__(self, phase, cfg):
         super().__init__(phase, cfg)

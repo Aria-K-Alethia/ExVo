@@ -31,6 +31,28 @@ class BaselineModel(nn.Module):
         pred = self.model(feat)
         return dict(pred_final=pred)
 
+class EgemapsModel(nn.Module):
+    def __init__(self, feat_dim, cfg):
+        super().__init__()
+        self.cfg = cfg
+        self.model = nn.Sequential(
+                        nn.BatchNorm1d(feat_dim),
+                        nn.Linear(feat_dim, 64),
+                        nn.BatchNorm1d(64),
+                        nn.LeakyReLU(),
+                        nn.Linear(64, 32),
+                        nn.BatchNorm1d(32),
+                        nn.LeakyReLU(),
+                        nn.Linear(32, 16),
+                        nn.BatchNorm1d(16),
+                        nn.LeakyReLU(),
+                        nn.Linear(16, 10),
+                        nn.Sigmoid()
+                    )
+    def forward(self, feat, batch):
+        pred = self.model(feat)
+        return dict(pred_final=pred)
+
 class CoarseModel(nn.Module):
     def __init__(self, feat_dim, cfg):
         super().__init__()
@@ -178,14 +200,14 @@ class ChainModel(nn.Module):
         for i in range(self.c):
             score = self.sigmoid(self.chain[i](input_feat))
             if gt is None or self.cfg.model.chain_strategy == 'pred':
-                input_feat = torch.cat([feat, score], dim=-1)
+                input_feat = torch.cat([input_feat, score], dim=-1)
             elif gt is not None and self.cfg.model.chain_strategy == 'ss':
                 p = torch.rand(feat.shape[0], dtype=feat.dtype, device=feat.device).unsqueeze(-1)
                 threshold = self.get_prob()
                 next_input = torch.where(p >= threshold, score, gt[:, i:i+1].type_as(score))
-                input_feat = torch.cat([feat, next_input], dim=-1).type_as(feat)
+                input_feat = torch.cat([input_feat, next_input], dim=-1).type_as(feat)
             elif gt is not None and self.cfg.model.chain_strategy == 'gt':
-                input_feat = torch.cat([feat, gt[:, i:i+1].type_as(feat)], dim=-1).type_as(feat)
+                input_feat = torch.cat([input_feat, gt[:, i:i+1].type_as(feat)], dim=-1).type_as(feat)
             out_buf.append(score)
         out = torch.cat(out_buf, -1)
         return {'pred_final': out}
