@@ -5,12 +5,11 @@ import soundfile as sf
 import os
 import subprocess
 import numpy as np
+from argparse import ArgumentParser
 from glob import glob
 from os.path import join, basename, exists
 from tqdm import tqdm
 
-src_dir = '../data/wav'
-tgt_dir = '../data/wav_trimmed'
 top_db = 60
 
 def trim_silence(wav, top_db=60):
@@ -24,7 +23,7 @@ def trim_silence(wav, top_db=60):
     return out, intervals
 
 # trim silence
-def process_silence():
+def process_silence(src_dir, tgt_dir):
     os.makedirs(tgt_dir, exist_ok=True)
     files = glob(join(src_dir, '*.wav'))
     print(f'Trimming silence in audios from {src_dir} and writing to {tgt_dir}')
@@ -97,5 +96,8 @@ def process_enhancement():
 
 
 if __name__ == '__main__':
-    #process_channel()
-    process_silence()
+    parser = ArgumentParser()
+    parser.add_argument('--src_dir', type=str, default='../data/wav')
+    parser.add_argument('--tgt_dir', type=str, default='../data/wav_trimmed')
+    args, _ = parser.parse_known_args()
+    process_silence(args.src_dir, args.tgt_dir)
