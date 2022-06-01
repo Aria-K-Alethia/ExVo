@@ -22,12 +22,14 @@ python3 create_splits.py --data_file_path=/path/to/data_info.csv --save_path=./f
 ```
 
 3. create test filelists (optional)
+
 If you want to fine-tune the model on test samples, please run:
 ```bash
 python3 create_splits.py --data_file_path=/path/to/data_info.fewshot.csv --save_path=./filelists --test
 ```
 
 4. create cross-validation filelists (optional)
+
 If you want to do cross-validation, please run:
 ```bash
 python3 create_cv.py
