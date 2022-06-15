@@ -1,6 +1,6 @@
 # Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations
 
-This respository contains the code of the paper "Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations" submitted to the Few-Shot track of the ICML Expressive Vocalizations (ExVo) Competition.
+This respository contains the official implementation of the paper "Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations" accepted to the Few-Shot track of the ICML Expressive Vocalizations (ExVo) Competition.
 
 ## Setup
 Please follow the following steps to setup your environment
