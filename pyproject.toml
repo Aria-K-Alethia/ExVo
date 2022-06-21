@@ -2,7 +2,7 @@
 name = "ExVo-Fewshot"
 version = "0.1.0"
 description = ""
-authors = ["xindetai <xindetai@qq.com>"]
+authors = ["xindetai <you@example.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
