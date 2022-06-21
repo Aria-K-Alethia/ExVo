@@ -1,6 +1,12 @@
 # Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations
 
-This respository contains the official implementation of the paper "Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations" accepted to the Few-Shot track of the ICML Expressive Vocalizations (ExVo) Competition.
+Official implementation of the paper "Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations" accepted by the Few-Shot track of the *ICML Expressive Vocalizations (ExVo) Competition 2022*.
+
+>**Abstract:**<br>
+We present an emotion recognition system for nonverbal vocalizations (NVs) submitted to the ExVo Few-Shot track of the ICML Expressive Vocalizations Competition 2022.
+The proposed method uses self-supervised learning (SSL) models to extract features from NVs and uses a classifier chain to model the label dependency between emotions.
+Experimental results demonstrate that the proposed method can significantly improve the performance of this task compared to several baseline methods.
+Our proposed method obtained a mean concordance correlation coefficient (CCC) of $0.725$ in the validation set and $0.739$ in the test set, while the best baseline method only obtained $0.554$ in the validation set.
 
 ## Setup
 Please follow the following steps to setup your environment
@@ -52,6 +58,10 @@ git checkout cv
 python3 cv.py
 ```
 This will run cross-validation with default setting
+
+## Citation
+Please kindly cite our work if you find our paper or code is helpful for you.
+
 
 ## LICENCE
 MIT
