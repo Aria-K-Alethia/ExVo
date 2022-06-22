@@ -47,7 +47,7 @@ Run the following cmd to train the model.
 python3 train.py
 ```
 This will train the model with default setting using Wav2vec-base as feature extractor and linear classifier chain as the predictor.
-If anything goes well, you should get a mean CCC of about 0.67 on the validation set.
+If everything goes well, you should get a mean CCC of about 0.67 on the validation set.
 
 If you want to train other models or modify the parameters, please refer the config files under the `config` dir.
 
