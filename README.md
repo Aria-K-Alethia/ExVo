@@ -62,6 +62,12 @@ This will run cross-validation with default setting
 ## Citation
 Please kindly cite our work if you find our paper or code is helpful for you.
 
+@article{detai2022exvo,
+  title={Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations},
+  author={Detai, Xin and Shinnosuke, Takamichi and Hiroshi, Saruwatari},
+  journal={arXiv preprint arXiv:2206.10695},
+  year={2022}
+}
 
 ## LICENCE
 MIT
