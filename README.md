@@ -1,6 +1,6 @@
 # Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations
 
-Official implementation of the paper "Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations" accepted by the Few-Shot track of the *ICML Expressive Vocalizations (ExVo) Competition 2022*.
+Official implementation of the paper "[Exploring the Effectiveness of Self-supervised Learning and Classifier Chains in Emotion Recognition of Nonverbal Vocalizations](https://arxiv.org/abs/2206.10695)" accepted by the Few-Shot track of the *ICML Expressive Vocalizations (ExVo) Competition 2022*.
 
 >**Abstract:**<br>
 We present an emotion recognition system for nonverbal vocalizations (NVs) submitted to the ExVo Few-Shot track of the ICML Expressive Vocalizations Competition 2022.
