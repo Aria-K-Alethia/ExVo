@@ -8,6 +8,10 @@ The proposed method uses self-supervised learning (SSL) models to extract featur
 Experimental results demonstrate that the proposed method can significantly improve the performance of this task compared to several baseline methods.
 Our proposed method obtained a mean concordance correlation coefficient (CCC) of $0.725$ in the validation set and $0.739$ in the test set, while the best baseline method only obtained $0.554$ in the validation set.
 
+## Ranking
+Our work obtained the **1st place** in the Fewshot-track.
+Our work also has the **best emotion recognition performance** on not only the **Few-shot** track but also the **Multi-task** track.
+
 ## Setup
 Please follow the following steps to setup your environment
 1. clone this repo
